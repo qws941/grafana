@@ -24,8 +24,6 @@ services:
       - grafana-data:/var/lib/grafana
       - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/provisioning:/etc/grafana/provisioning:ro
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     networks:
       - traefik-public
       - monitoring-net
@@ -53,8 +51,6 @@ services:
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
     restart: unless-stopped
-    ports:
-      - "9090:9090"
     networks:
       - traefik-public
       - monitoring-net
@@ -73,8 +69,6 @@ services:
     volumes:
       - loki-data:/loki
     restart: unless-stopped
-    ports:
-      - "3100:3100"
     networks:
       - traefik-public
       - monitoring-net
@@ -107,8 +101,6 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
     restart: unless-stopped
-    ports:
-      - "9093:9093"
     networks:
       - traefik-public
       - monitoring-net
