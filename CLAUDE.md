@@ -8,6 +8,21 @@ This is a Grafana Monitoring Stack deployment configuration for Synology NAS, pr
 
 ## Key Commands
 
+### Development & Testing
+```bash
+# Install dependencies
+npm install
+
+# Run TypeScript compilation
+npm run build
+
+# Start development mode with watch
+npm run dev
+
+# Run tests (currently placeholder)
+npm test
+```
+
 ### Deployment
 ```bash
 # Create volume structure (required before first deployment)
@@ -26,17 +41,19 @@ docker-compose up -d
 ### Operations
 ```bash
 # Check service status
-docker-compose ps
+cd compose && docker-compose ps
 
 # View logs
-docker-compose logs -f [service-name]
+cd compose && docker-compose logs -f [service-name]
 
 # Update services
-docker-compose pull
-docker-compose up -d
+cd compose && docker-compose pull && docker-compose up -d
 
 # Backup Grafana data
 ./scripts/backup.sh
+
+# Validate docker-compose configuration
+cd compose && docker-compose config
 ```
 
 ## Architecture
@@ -103,11 +120,43 @@ ls -la /volume1/docker/grafana/
 # Verify network connectivity
 docker network inspect grafana-monitoring-net
 
-# Test Prometheus targets
+# Test Prometheus targets (requires Prometheus running)
 curl http://localhost:9090/api/v1/targets
 
-# Check Grafana datasources
+# Check Grafana datasources (requires Grafana running)
 curl http://localhost:3000/api/datasources
+
+# Recreate volume structure if permissions are wrong
+sudo ./scripts/create-volume-structure.sh
+
+# Check container logs for specific service
+cd compose && docker-compose logs [service-name]
+
+# Restart specific service
+cd compose && docker-compose restart [service-name]
+```
+
+## File Structure Overview
+
+```
+grafana/
+├── compose/
+│   ├── docker-compose.yml     # Main deployment configuration
+│   └── portainer-stack.yml    # Portainer-optimized with NFS support
+├── configs/
+│   ├── provisioning/          # Grafana auto-provisioning configs
+│   │   ├── datasources/       # Prometheus/Loki datasource configs
+│   │   └── dashboards/        # Dashboard auto-import configs
+│   ├── prometheus.yml         # Prometheus scrape targets
+│   ├── promtail-config.yml    # Promtail log collection rules
+│   ├── loki-config.yaml       # Loki configuration
+│   └── prometheus-alerts.yml  # Prometheus alerting rules
+├── scripts/
+│   ├── create-volume-structure.sh  # Volume setup with proper permissions
+│   └── backup.sh              # Grafana data backup script
+├── test.ts                    # TypeScript test file
+├── package.json               # Node.js dependencies and scripts
+└── tsconfig.json              # TypeScript configuration
 ```
 
 ## Important Considerations
@@ -115,5 +164,6 @@ curl http://localhost:3000/api/datasources
 1. **Volume Permissions**: The create-volume-structure.sh script MUST be run before first deployment to set correct ownership
 2. **Network Dependencies**: Requires external `traefik-public` network to exist
 3. **Synology Compatibility**: Configured specifically for Synology NAS paths and constraints
-4. **Security**: Default admin password should be changed in production
+4. **Security**: Default admin password (bingogo1) should be changed in production
 5. **Resource Usage**: Monitor disk usage as Prometheus/Loki can consume significant storage over time
+6. **TypeScript Setup**: Uses tsx for running TypeScript files directly without compilation step
