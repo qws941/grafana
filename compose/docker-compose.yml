@@ -22,7 +22,7 @@ services:
       - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
     volumes:
       - grafana-data:/var/lib/grafana
-      - ${PWD}/configs/provisioning:/etc/grafana/provisioning:ro
+      - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/provisioning:/etc/grafana/provisioning:ro
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -45,7 +45,7 @@ services:
     container_name: prometheus-container
     volumes:
       - prometheus-data:/prometheus
-      - ${PWD}/configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -91,7 +91,7 @@ services:
     container_name: promtail-container
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${PWD}/configs/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/promtail-config.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     restart: unless-stopped
     networks:
@@ -102,7 +102,7 @@ services:
     container_name: alertmanager-container
     volumes:
       - alertmanager-data:/alertmanager
-      - ${PWD}/configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
