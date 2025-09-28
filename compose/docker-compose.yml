@@ -22,13 +22,16 @@ services:
       - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
     volumes:
       - grafana-data:/var/lib/grafana
-      - ../configs/provisioning:/etc/grafana/provisioning:ro
+      - ${PWD}/configs/provisioning:/etc/grafana/provisioning:ro
     restart: unless-stopped
     ports:
       - "3000:3000"
     networks:
       - traefik-public
       - monitoring-net
+    depends_on:
+      - prometheus
+      - loki
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -42,7 +45,7 @@ services:
     container_name: prometheus-container
     volumes:
       - prometheus-data:/prometheus
-      - ../configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${PWD}/configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -88,7 +91,7 @@ services:
     container_name: promtail-container
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../configs/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ${PWD}/configs/promtail-config.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     restart: unless-stopped
     networks:
@@ -99,7 +102,7 @@ services:
     container_name: alertmanager-container
     volumes:
       - alertmanager-data:/alertmanager
-      - ../configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ${PWD}/configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
