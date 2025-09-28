@@ -6,32 +6,65 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - url: http://loki-container:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: syslog
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: syslog
-          __path__: /var/log/*.log
-
-  - job_name: docker
+  # Docker container logs with enhanced labeling
+  - job_name: docker-containers
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
     relabel_configs:
+      # Extract container name
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
-        target_label: 'container'
+        target_label: 'container_name'
+
+      # Extract image name
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
+
+      # Log stream (stdout/stderr)
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'stream'
 
-  - job_name: claude-logs
+      # Add service label for monitoring stack containers
+      - source_labels: ['__meta_docker_container_name']
+        regex: '.*(grafana|prometheus|loki|alertmanager).*'
+        target_label: 'service'
+        replacement: 'monitoring'
+
+      # Add environment label
+      - target_label: 'environment'
+        replacement: 'production'
+
+    pipeline_stages:
+      # Parse JSON logs if applicable
+      - json:
+          expressions:
+            level: level
+            timestamp: time
+            message: msg
+
+      # Add log level labels
+      - labels:
+          level:
+
+      # Format timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          fallback_formats:
+            - '2006-01-02T15:04:05.000000000Z07:00'
+            - Unix
+
+  # System logs
+  - job_name: system-logs
     static_configs:
       - targets:
           - localhost
         labels:
-          job: claude
-          __path__: /claude/logs/*.log
+          job: system
+          service: system
+          environment: production
+          __path__: /var/log/*.log
