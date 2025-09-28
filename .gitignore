@@ -1,0 +1,22 @@
+# Environment files
+envs/
+*.env
+*.env.*
+!*.env.example
+
+# Data and logs
+data/
+logs/
+prometheus-data/
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

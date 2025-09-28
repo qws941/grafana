@@ -1,0 +1,52 @@
+# Grafana Stack Sync Configuration
+# 동기화 설정을 위한 구성 파일
+
+sync:
+  method: bidirectional  # one-way, bidirectional
+  interval: 300  # seconds
+
+# 동기화 방법 우선순위
+methods:
+  primary: rsync
+  fallback:
+    - scp
+    - git
+
+# 원본(로컬) 설정
+source:
+  path: /home/jclee/.claude/grafana
+  exclude:
+    - "*.log"
+    - "data/"
+    - ".git/"
+    - "node_modules/"
+    - ".env.local"
+    - "*.swp"
+    - "*.tmp"
+
+# 대상(리모트 NAS) 설정
+target:
+  host: nas.jclee.me
+  user: jclee
+  path: /volume1/docker/grafana
+
+# NFS 설정 (선택적)
+nfs:
+  enabled: true
+  mount_point: /mnt/nfs/grafana
+  options: "rw,sync,no_subtree_check"
+
+# 백업 설정
+backup:
+  enabled: true
+  keep_versions: 5
+  path: /backup/grafana-stack
+
+# 알림 설정
+notifications:
+  slack:
+    enabled: false
+    webhook: ""
+  email:
+    enabled: false
+    to: "admin@jclee.me"

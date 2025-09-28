@@ -1,0 +1,121 @@
+version: "3.8"
+
+# Grafana Monitoring Stack - Synology NAS Optimized
+# Repository: https://github.com/qws941/claude.git
+# Path: grafana/compose/docker-compose.yml
+# 
+# Features:
+# - Synology NAS compatible volume paths
+# - No problematic system mounts
+# - Direct port access for easy setup
+# - Simplified configuration
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-container
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=bingogo1
+      - GF_SERVER_DOMAIN=grafana.jclee.me
+      - GF_SERVER_ROOT_URL=https://grafana.jclee.me
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - /volume1/docker/grafana/configs/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.jclee.me`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-container
+    volumes:
+      - prometheus-data:/prometheus
+      - /volume1/docker/grafana/configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.jclee.me`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=cloudflare"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki-container
+    command: ["-config.file=/etc/loki/local-config.yaml", "-target=all"]
+    volumes:
+      - loki-data:/loki
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.loki.rule=Host(`loki.jclee.me`)"
+      - "traefik.http.routers.loki.entrypoints=websecure"
+      - "traefik.http.routers.loki.tls.certresolver=cloudflare"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail-container
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /volume1/docker/grafana/configs/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-container
+    volumes:
+      - alertmanager-data:/alertmanager
+    command:
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.jclee.me`)"
+      - "traefik.http.routers.alertmanager.entrypoints=websecure"
+      - "traefik.http.routers.alertmanager.tls.certresolver=cloudflare"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+
+networks:
+  traefik-public:
+    external: true
+  monitoring-net:
+    name: grafana-monitoring-net
+    driver: bridge
+
+volumes:
+  grafana-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  loki-data:
+    driver: local
+  alertmanager-data:
+    driver: local
