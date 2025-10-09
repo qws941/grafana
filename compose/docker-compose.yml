@@ -68,6 +68,7 @@ services:
     command: ["-config.file=/etc/loki/local-config.yaml", "-target=all"]
     volumes:
       - loki-data:/loki
+      - ${GRAFANA_CONFIG_PATH:-/volume1/docker/grafana}/configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
     restart: unless-stopped
     networks:
       - traefik-public
