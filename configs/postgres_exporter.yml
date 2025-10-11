@@ -1,0 +1,28 @@
+# PostgreSQL Exporter Configuration
+# See: https://github.com/prometheus-community/postgres_exporter
+
+# Database connection settings are handled via environment variable:
+# DATA_SOURCE_NAME=postgresql://user:password@host:port/database
+
+# Query configuration
+auth_modules:
+  n8n:
+    type: userpass
+    userpass:
+      username: n8n
+      password: ${N8N_DB_PASSWORD}
+    options:
+      sslmode: disable
+
+# Collectors to enable
+# Leave empty for default collectors
+auto_discover_databases: true
+
+# Exclude databases (default: none)
+exclude_databases: []
+
+# Metric relabeling
+# metric_mapping:
+#   pg_stat_database_numbackends:
+#     usage: "GAUGE"
+#     description: "Number of backends currently connected to this database"

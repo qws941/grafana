@@ -68,3 +68,34 @@ scrape_configs:
           service: system
           environment: production
           __path__: /var/log/*.log
+
+  # Gemini conversation logs
+  - job_name: gemini-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: gemini
+          service: ai-conversation
+          environment: production
+          __path__: /var/log/gemini/*.log
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            conversation_id: conversation_id
+            message: message
+
+      - labels:
+          level:
+          conversation_id:
+
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+          fallback_formats:
+            - '2006-01-02T15:04:05Z'
+            - Unix

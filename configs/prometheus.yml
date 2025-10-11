@@ -40,8 +40,14 @@ scrape_configs:
 
   - job_name: 'n8n-postgres'
     static_configs:
-      - targets: ['n8n-postgres-exporter:9187']
+      - targets: ['n8n-postgres-exporter-container:9187']
 
   - job_name: 'n8n-redis'
     static_configs:
       - targets: ['n8n-redis-exporter:9121']
+
+  # Blacklist Service
+  - job_name: 'blacklist'
+    static_configs:
+      - targets: ['blacklist.jclee.me:2542']
+    metrics_path: '/metrics'
