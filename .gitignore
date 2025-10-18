@@ -36,3 +36,14 @@ Thumbs.db
 # Local development overrides
 docker-compose.local.yml
 docker-compose.override.yml
+
+# Claude Code temporary files
+debug/
+projects/
+shell-snapshots/
+file-history/
+statsig/
+todos/
+*.jsonl
+.credentials.json
+settings.json
