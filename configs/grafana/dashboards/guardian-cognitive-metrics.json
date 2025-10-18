@@ -1,0 +1,168 @@
+{
+  "dashboard": {
+    "title": "Guardian Cognitive Metrics",
+    "tags": ["reinforcement-learning", "cognitive-autonomy", "guardian"],
+    "timezone": "Asia/Seoul",
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Decision Confidence Score",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "guardian_decision_confidence_score",
+            "legendFormat": "Confidence"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 50, "color": "yellow" },
+                { "value": 80, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "id": 2,
+        "title": "Alternative Paths Considered",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(guardian_alternative_paths_considered_total[5m])",
+            "legendFormat": "Paths/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cpm",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "blue" },
+                { "value": 2, "color": "green" },
+                { "value": 5, "color": "yellow" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }
+      },
+      {
+        "id": 3,
+        "title": "System Resource Pressure",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "guardian_system_resource_pressure_score",
+            "legendFormat": "Pressure"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 60, "color": "yellow" },
+                { "value": 80, "color": "red" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 }
+      },
+      {
+        "id": 4,
+        "title": "Verification Failure Reasons",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by(reason) (guardian_verification_failure_reasons_total)",
+            "legendFormat": "{{reason}}"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 }
+      },
+      {
+        "id": 5,
+        "title": "AI Agent Prompt Token Count",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by(agent, model, le) (rate(ai_agent_prompt_token_count_bucket[5m])))",
+            "legendFormat": "{{agent}} ({{model}}) P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "id": 6,
+        "title": "Response Quality Heatmap",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "ai_agent_response_quality_score",
+            "format": "time_series",
+            "legendFormat": "{{agent}}"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 }
+      },
+      {
+        "id": 7,
+        "title": "Model Quota Remaining",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "ai_agent_model_quota_remaining",
+            "legendFormat": "{{provider}}/{{model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 10, "color": "yellow" },
+                { "value": 50, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 6 }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Loki",
+          "enable": true,
+          "expr": "{job=\"guardian\",event=~\"reinforcement_signal_.*\"}",
+          "textFormat": "{{event}}: {{value}}",
+          "tagKeys": "event,tier,outcome",
+          "name": "Reinforcement Signals"
+        }
+      ]
+    }
+  }
+}

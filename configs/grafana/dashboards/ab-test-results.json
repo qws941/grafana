@@ -1,0 +1,224 @@
+{
+  "dashboard": {
+    "title": "Guardian A/B Test Results",
+    "tags": ["reinforcement-learning", "ab-testing", "experiments"],
+    "timezone": "Asia/Seoul",
+    "refresh": "1m",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Variant Success Rate Comparison",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ab_test_variant_success_rate",
+            "legendFormat": "{{variant}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          }
+        },
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 }
+      },
+      {
+        "id": 2,
+        "title": "Autonomous Rate Delta (vs Baseline)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "guardian_autonomous_rate{variant!=\"baseline\"} - ignoring(variant) guardian_autonomous_rate{variant=\"baseline\"}",
+            "legendFormat": "{{variant}} Δ"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            },
+            "thresholds": {
+              "steps": [
+                { "value": -0.05, "color": "red" },
+                { "value": 0, "color": "yellow" },
+                { "value": 0.02, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "id": 3,
+        "title": "Rollback Rate Delta (vs Baseline)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(guardian_rollback_total{variant!=\"baseline\"}[1h]) - ignoring(variant) rate(guardian_rollback_total{variant=\"baseline\"}[1h])",
+            "legendFormat": "{{variant}} Δ"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            },
+            "thresholds": {
+              "steps": [
+                { "value": 0.03, "color": "red" },
+                { "value": 0.01, "color": "yellow" },
+                { "value": 0, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "id": 4,
+        "title": "Promotion Readiness",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ab_test_promotion_readiness",
+            "legendFormat": "{{variant}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "mappings": [
+              { "type": "value", "value": "0", "text": "NOT READY" },
+              { "type": "value", "value": "1", "text": "READY" }
+            ],
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 1, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 0, "y": 16, "w": 8, "h": 4 }
+      },
+      {
+        "id": 5,
+        "title": "Current Test Stage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ab_test_current_stage",
+            "legendFormat": "Stage"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "mappings": [
+              { "type": "value", "value": "0.1", "text": "10%" },
+              { "type": "value", "value": "0.5", "text": "50%" },
+              { "type": "value", "value": "1.0", "text": "100%" }
+            ]
+          }
+        },
+        "gridPos": { "x": 8, "y": 16, "w": 8, "h": 4 }
+      },
+      {
+        "id": 6,
+        "title": "Test Duration",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "time() - ab_test_start_timestamp",
+            "legendFormat": "Duration"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "blue" },
+                { "value": 604800, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "x": 16, "y": 16, "w": 8, "h": 4 }
+      },
+      {
+        "id": 7,
+        "title": "Variant Metrics Comparison Table",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ab_test_variant_success_rate",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "guardian_autonomous_rate",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "rate(guardian_rollback_total[1h])",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "merge",
+            "options": {}
+          }
+        ],
+        "gridPos": { "x": 0, "y": 20, "w": 24, "h": 8 }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Loki",
+          "enable": true,
+          "expr": "{job=\"guardian\",event=~\"ab_test_start|ab_test_rollout|ab_test_stop\"}",
+          "textFormat": "{{event}}: {{variant}} {{stage}}",
+          "tagKeys": "event,variant",
+          "name": "A/B Test Lifecycle"
+        },
+        {
+          "datasource": "Loki",
+          "enable": true,
+          "expr": "{job=\"guardian\",event=\"ab_test_rollback\"}",
+          "textFormat": "ROLLBACK: {{reason}}",
+          "iconColor": "red",
+          "name": "Rollback Events"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "variant",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(ab_test_variant_success_rate, variant)",
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    }
+  }
+}
