@@ -1,0 +1,78 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'alertmanager@jclee.me'
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 0s
+      repeat_interval: 1h
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning'
+      repeat_interval: 4h
+
+    # Info alerts
+    - match:
+        severity: info
+      receiver: 'info'
+      repeat_interval: 24h
+
+# Receivers
+receivers:
+  # Default receiver (catch-all)
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://n8n-container:5678/webhook/alerts'
+        send_resolved: true
+
+  # Critical alerts
+  - name: 'critical'
+    webhook_configs:
+      - url: 'http://n8n-container:5678/webhook/alerts-critical'
+        send_resolved: true
+
+  # Warning alerts
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://n8n-container:5678/webhook/alerts-warning'
+        send_resolved: true
+
+  # Info alerts
+  - name: 'info'
+    webhook_configs:
+      - url: 'http://n8n-container:5678/webhook/alerts-info'
+        send_resolved: true
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+  # Inhibit info if warning or critical is firing
+  - source_match_re:
+      severity: 'critical|warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'cluster', 'service']

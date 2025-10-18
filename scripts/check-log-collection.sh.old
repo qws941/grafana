@@ -1,0 +1,73 @@
+#!/bin/bash
+# Log Collection Health Check Script
+# Verifies all containers are sending logs to Loki
+
+set -e
+
+echo "🔍 Log Collection Health Check"
+echo "==============================="
+echo ""
+
+# Get list of running containers
+echo "📦 Running Containers:"
+CONTAINERS=$(ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --format '{{.Names}}'" | sort)
+TOTAL_CONTAINERS=$(echo "$CONTAINERS" | wc -l)
+echo "$CONTAINERS" | nl
+echo ""
+echo "Total: $TOTAL_CONTAINERS containers"
+echo ""
+
+# Key services that must have logs
+CRITICAL_SERVICES=(
+  "grafana-container"
+  "prometheus-container"
+  "loki-container"
+  "alertmanager-container"
+  "promtail-container"
+  "n8n-container"
+  "n8n-postgres-container"
+  "n8n-redis-container"
+  "node-exporter-container"
+  "cadvisor-container"
+)
+
+echo "🎯 Critical Services (Must Have Logs):"
+echo "${CRITICAL_SERVICES[@]}" | tr ' ' '\n' | nl
+echo ""
+
+# Check Loki ingestion rate
+echo "📊 Loki Ingestion Statistics:"
+ssh -p 1111 jclee@192.168.50.215 \
+  "sudo docker exec prometheus-container wget -qO- \
+  'http://localhost:9090/api/v1/query?query=rate(loki_distributor_lines_received_total[5m])'" | \
+  jq -r '.data.result[0] | "Lines/sec: " + .value[1]' 2>/dev/null || echo "⚠️  Unable to fetch metrics"
+echo ""
+
+# Check Promtail status
+echo "🚀 Promtail Status:"
+PROMTAIL_STATUS=$(ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --filter name=promtail --format '{{.Status}}'")
+echo "Status: $PROMTAIL_STATUS"
+echo ""
+
+# Check for Promtail errors
+echo "⚠️  Recent Promtail Errors (last 20 lines):"
+ssh -p 1111 jclee@192.168.50.215 \
+  "sudo docker logs promtail-container --tail 100 2>&1" | \
+  grep -iE 'error|warn|fail' | tail -20 || echo "✅ No errors found"
+echo ""
+
+# Recommendations
+echo "💡 Recommendations:"
+echo "1. Verify logs in Grafana: https://grafana.jclee.me/explore"
+echo "2. Query: {job=\"docker-containers\"} | json"
+echo "3. Check Promtail targets: http://promtail-container:9080/targets"
+echo "4. If logs missing: Restart Promtail (docker restart promtail-container)"
+echo ""
+
+# Summary
+echo "📝 Summary:"
+echo "- Total Containers: $TOTAL_CONTAINERS"
+echo "- Critical Services: ${#CRITICAL_SERVICES[@]}"
+echo "- Promtail: $PROMTAIL_STATUS"
+echo ""
+echo "✅ Log Collection Health Check Complete"

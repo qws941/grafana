@@ -1,0 +1,62 @@
+apiVersion: 1
+
+providers:
+  # Core Monitoring - Self-monitoring of the observability stack
+  - name: 'core-monitoring'
+    orgId: 1
+    folder: 'Core-Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/core-monitoring
+      foldersFromFilesStructure: false
+
+  # Infrastructure - System and container metrics
+  - name: 'infrastructure'
+    orgId: 1
+    folder: 'Infrastructure'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/infrastructure
+      foldersFromFilesStructure: false
+
+  # Applications - Application-specific monitoring
+  - name: 'applications'
+    orgId: 1
+    folder: 'Applications'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/applications
+      foldersFromFilesStructure: false
+
+  # Logging - Log aggregation and analysis
+  - name: 'logging'
+    orgId: 1
+    folder: 'Logging'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/logging
+      foldersFromFilesStructure: false
+
+  # Alerting - Alert management and overview
+  - name: 'alerting'
+    orgId: 1
+    folder: 'Alerting'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/alerting
+      foldersFromFilesStructure: false

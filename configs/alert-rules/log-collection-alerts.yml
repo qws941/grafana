@@ -1,0 +1,104 @@
+groups:
+  - name: log_collection_alerts
+    interval: 30s
+    rules:
+      # Promtail is down
+      - alert: PromtailDown
+        expr: up{job="promtail"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: logging
+        annotations:
+          summary: "Promtail is down"
+          description: "Promtail (log collector) has been down for more than 2 minutes. Logs are not being collected."
+          grafana_url: "https://grafana.jclee.me"
+
+      # Loki is down
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: logging
+        annotations:
+          summary: "Loki is down"
+          description: "Loki (log storage) has been down for more than 2 minutes. Log ingestion and queries are unavailable."
+          grafana_url: "https://grafana.jclee.me"
+
+      # No logs being ingested
+      - alert: NoLogsIngested
+        expr: rate(loki_distributor_lines_received_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "No logs being ingested"
+          description: "Loki has not received any logs for 5 minutes. Check Promtail and log sources."
+          grafana_url: "https://grafana.jclee.me/explore"
+
+      # Claude Code logs not updating
+      - alert: ClaudeCodeLogsStale
+        expr: |
+          (time() - loki_distributor_latest_seen_sample_timestamp_seconds{job="claude-code"} > 3600)
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Claude Code logs are stale"
+          description: "Claude Code logs have not been updated for over 1 hour. Check the cron job."
+          grafana_url: "https://grafana.jclee.me/explore?left=%7B%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D%5C%22claude-code%5C%22%7D%22%7D%5D%7D"
+
+      # High log ingestion error rate
+      - alert: HighLogIngestionErrors
+        expr: |
+          sum(rate(loki_distributor_lines_received_total{status_code=~"5.."}[5m])) /
+          sum(rate(loki_distributor_lines_received_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "High log ingestion error rate"
+          description: "More than 5% of log ingestion requests are failing. Error rate: {{ $value | humanizePercentage }}"
+          grafana_url: "https://grafana.jclee.me/d/log-collection-monitoring"
+
+      # Loki storage almost full
+      - alert: LokiStorageAlmostFull
+        expr: |
+          (loki_ingester_chunk_stored_bytes_total / (10 * 1024 * 1024 * 1024)) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Loki storage almost full"
+          description: "Loki storage is over 80% full (assuming 10GB limit). Current: {{ $value | humanizePercentage }}"
+          grafana_url: "https://grafana.jclee.me/d/log-collection-monitoring"
+
+      # Promtail file read errors
+      - alert: PromtailFileReadErrors
+        expr: rate(promtail_read_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Promtail file read errors detected"
+          description: "Promtail is encountering errors reading log files. Rate: {{ $value | humanize }} errors/sec"
+          grafana_url: "https://grafana.jclee.me/d/log-collection-monitoring"
+
+      # Container logs missing
+      - alert: ContainerLogsMissing
+        expr: |
+          (count(count by (container_name) (rate({container_name=~".+"}[5m])))) < 14
+        for: 10m
+        labels:
+          severity: warning
+          component: logging
+        annotations:
+          summary: "Container logs missing"
+          description: "Expected 16 containers logging, but only {{ $value }} are active. Some containers may not be logging."
+          grafana_url: "https://grafana.jclee.me/d/log-collection-monitoring"

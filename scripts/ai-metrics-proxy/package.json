@@ -1,0 +1,13 @@
+{
+  "name": "ai-metrics-proxy",
+  "version": "1.0.0",
+  "description": "AI API usage tracking with Prometheus metrics",
+  "main": "log-parser.js",
+  "scripts": {
+    "start": "node log-parser.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "prom-client": "^15.1.0"
+  }
+}

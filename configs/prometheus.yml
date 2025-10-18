@@ -1,0 +1,117 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'synology-nas'
+    environment: 'production'
+
+# Load recording rules
+rule_files:
+  - /etc/prometheus-configs/recording-rules.yml
+  - /etc/prometheus-configs/alert-rules/*.yml
+
+# AlertManager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager-container:9093'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus-container:9090']
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana-container:3000']
+
+  # Loki
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki-container:3100']
+
+  # AlertManager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager-container:9093']
+
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter-container:9100']
+        labels:
+          host: 'synology'
+          environment: 'production'
+
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor-container:8080']
+        labels:
+          host: 'synology'
+          environment: 'production'
+
+  # n8n (workflow automation)
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n-container:5678']
+    metrics_path: '/metrics'
+
+  # Local exporters (from development machine 192.168.50.100)
+  - job_name: 'local-node-exporter'
+    static_configs:
+      - targets: ['192.168.50.100:9101']
+        labels:
+          host: 'jclee-dev'
+          environment: 'development'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'node_.*'
+        action: keep
+
+  - job_name: 'local-cadvisor'
+    static_configs:
+      - targets: ['192.168.50.100:8081']
+        labels:
+          host: 'jclee-dev'
+          environment: 'development'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_.*'
+        action: keep
+
+  # AI Agent metrics (MCP servers)
+  - job_name: 'ai-agents'
+    static_configs:
+      - targets: ['192.168.50.100:9091']
+        labels:
+          host: 'jclee-dev'
+          environment: 'development'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_ai_.*'
+        action: keep
+
+  # HYCU Automation metrics
+  - job_name: 'hycu-automation'
+    static_configs:
+      - targets: ['192.168.50.100:9092']
+        labels:
+          service: 'hycu'
+          type: 'automation'
+          host: 'jclee-dev'
+          environment: 'development'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'hycu_.*'
+        action: keep

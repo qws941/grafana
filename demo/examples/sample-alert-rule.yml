@@ -1,0 +1,163 @@
+# Sample Alert Rule Configuration
+# This demonstrates how to create alert rules following best practices
+# Location: configs/alert-rules.yml
+
+groups:
+  - name: example_application_alerts
+    interval: 30s
+    rules:
+      # HIGH SEVERITY: Service unavailable
+      - alert: ServiceDown
+        expr: up{job="my-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          service: my-service
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: |
+            Service {{ $labels.job }} on instance {{ $labels.instance }} has been down for more than 2 minutes.
+
+            Current status: {{ $value }}
+
+            Runbook: https://docs.example.com/runbooks/service-down
+          dashboard: https://grafana.jclee.me/d/my-service
+
+      # MEDIUM SEVERITY: High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{job="my-service",status=~"5.."}[5m])
+            /
+            rate(http_requests_total{job="my-service"}[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: my-service
+        annotations:
+          summary: "High error rate for {{ $labels.job }}"
+          description: |
+            Error rate is {{ $value | humanizePercentage }} (threshold: 5%)
+
+            This indicates {{ $labels.job }} is experiencing elevated 5xx errors.
+
+            Check logs: https://grafana.jclee.me/explore?datasource=loki&query={job="my-service"}
+
+      # MEDIUM SEVERITY: High response time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket{job="my-service"}[5m])
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: my-service
+        annotations:
+          summary: "High response time (P99) for {{ $labels.job }}"
+          description: |
+            P99 response time is {{ $value }}s (threshold: 1s)
+
+            Users are experiencing slow responses.
+
+            Performance dashboard: https://grafana.jclee.me/d/my-service-performance
+
+      # LOW SEVERITY: High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name="my-service-container"}
+            /
+            container_spec_memory_limit_bytes{name="my-service-container"}
+          ) > 0.8
+        for: 15m
+        labels:
+          severity: info
+          team: platform
+          service: my-service
+        annotations:
+          summary: "High memory usage for {{ $labels.name }}"
+          description: |
+            Memory usage is {{ $value | humanizePercentage }} of limit
+
+            Container may be approaching memory limits.
+
+            Consider scaling or investigating memory leaks.
+
+## Alert Rule Best Practices
+
+# 1. Severity Levels
+#    - critical: Immediate action required (paging)
+#    - warning: Attention needed within hours
+#    - info: Awareness, no immediate action
+
+# 2. For Duration
+#    - Use 'for' clause to reduce alert noise (flapping)
+#    - critical: 1-5 minutes
+#    - warning: 5-15 minutes
+#    - info: 15+ minutes
+
+# 3. Annotations
+#    - summary: Brief, human-readable description
+#    - description: Detailed context, current value, threshold
+#    - Include runbook links for complex issues
+#    - Include dashboard/logs links for investigation
+
+# 4. Labels
+#    - severity: Alert priority
+#    - team: Responsible team
+#    - service: Affected service
+#    - component: Optional, specific component
+
+# 5. Query Best Practices
+#    - Use rate() for counters
+#    - Use appropriate time windows (5m typical)
+#    - Calculate ratios for percentage-based alerts
+#    - Use histogram_quantile() for latency percentiles
+
+# 6. Testing Alerts
+#    - Test by simulating conditions
+#    - Verify alert fires correctly
+#    - Verify annotations are helpful
+#    - Verify routing to correct channels
+
+## Common Alert Patterns
+
+# Pattern 1: Service Health (Binary)
+# expr: up{job="service"} == 0
+# Use case: Detect when service is completely down
+
+# Pattern 2: Error Rate (Percentage)
+# expr: rate(errors[5m]) / rate(requests[5m]) > threshold
+# Use case: Detect elevated error rates
+
+# Pattern 3: Latency (Percentile)
+# expr: histogram_quantile(0.99, rate(duration_bucket[5m])) > threshold
+# Use case: Detect slow responses affecting users
+
+# Pattern 4: Saturation (Percentage)
+# expr: used / limit > threshold
+# Use case: Detect resource exhaustion (memory, connections)
+
+# Pattern 5: Rate of Change
+# expr: delta(metric[5m]) > threshold
+# Use case: Detect sudden spikes or drops
+
+## AlertManager Integration
+
+# These alerts will be sent to AlertManager (https://alertmanager.jclee.me)
+# AlertManager routes based on labels (severity, team, service)
+# Configure routes in configs/alertmanager.yml
+
+## Reloading Alert Rules
+
+# After editing this file, reload Prometheus:
+# ssh -p 1111 jclee@192.168.50.215 \
+#   "sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload"
+
+# Verify rules loaded:
+# https://prometheus.jclee.me/rules

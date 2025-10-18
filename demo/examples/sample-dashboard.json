@@ -1,0 +1,199 @@
+{
+  "uid": "example-dashboard",
+  "title": "Example Dashboard - REDS Methodology",
+  "tags": ["applications", "example", "reds-methodology"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🚀 RATE: Request Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[5m]) * 60",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqpm",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "red", "value": 100}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "description": "Number of HTTP requests per minute. Normal: 10-50/min, Peak: 100+/min"
+    },
+    {
+      "id": 2,
+      "title": "❌ ERRORS: Error Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) * 60",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqpm",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "description": "Number of 5xx errors per minute. Target: 0, Warning: >1/min, Critical: >5/min"
+    },
+    {
+      "id": 3,
+      "title": "⏱️ DURATION: Response Time P99",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.5},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "description": "99th percentile response time. Target: <0.5s, Warning: >0.5s, Critical: >1s"
+    },
+    {
+      "id": 4,
+      "title": "📊 SATURATION: Active Connections",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [
+        {
+          "expr": "active_connections",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 200}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "description": "Number of active connections. Normal: <100, Warning: >100, Critical: >200"
+    },
+    {
+      "id": 5,
+      "title": "Request Rate Over Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[5m]) * 60",
+          "refId": "A",
+          "legendFormat": "{{method}} {{status}}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "reqpm"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Response Time Percentiles",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+          "refId": "A",
+          "legendFormat": "P50",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "histogram_quantile(0.90, rate(http_request_duration_seconds_bucket[5m]))",
+          "refId": "B",
+          "legendFormat": "P90",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))",
+          "refId": "C",
+          "legendFormat": "P99",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      }
+    }
+  ]
+}

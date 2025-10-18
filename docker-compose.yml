@@ -1,0 +1,150 @@
+version: "3.8"
+
+# Grafana Monitoring Stack - Synology NAS Optimized
+# Repository: https://github.com/qws941/claude.git
+# Path: grafana/compose/docker-compose.yml
+# 
+# Features:
+# - Synology NAS compatible volume paths
+# - No problematic system mounts
+# - Direct port access for easy setup
+# - Simplified configuration
+
+services:
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-10.2.3}
+    container_name: grafana-container
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN:-grafana.jclee.me}
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN:-grafana.jclee.me}
+      - GF_INSTALL_PLUGINS=${GRAFANA_PLUGINS}
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+    volumes:
+      - ${GRAFANA_DATA_PATH:-/volume1/grafana/data/grafana}:/var/lib/grafana
+      - ${CONFIGS_PATH:-/volume1/grafana/configs}/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    networks:
+      - traefik-public
+      - monitoring-net
+    depends_on:
+      - prometheus
+      - loki
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.jclee.me`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v2.48.1}
+    container_name: prometheus-container
+    volumes:
+      - ${PROMETHEUS_DATA_PATH:-/volume1/grafana/data/prometheus}:/prometheus
+      - ${CONFIGS_PATH:-/volume1/grafana/configs}:/etc/prometheus-configs:ro
+    command:
+      - '--config.file=/etc/prometheus-configs/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-30d}'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    restart: unless-stopped
+    networks:
+      - traefik-public
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.jclee.me`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=cloudflare"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-2.9.3}
+    container_name: loki-container
+    command: ["-config.file=/etc/loki/local-config.yaml", "-target=all"]
+    volumes:
+      - ${LOKI_DATA_PATH:-/volume1/grafana/data/loki}:/loki
+      - ${CONFIGS_PATH:-/volume1/grafana/configs}/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    restart: unless-stopped
+    networks:
+      - traefik-public
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.loki.rule=Host(`loki.jclee.me`)"
+      - "traefik.http.routers.loki.entrypoints=websecure"
+      - "traefik.http.routers.loki.tls.certresolver=cloudflare"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+
+  promtail:
+    image: grafana/promtail:${PROMTAIL_VERSION:-2.9.3}
+    container_name: promtail-container
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${CONFIGS_PATH:-/volume1/grafana/configs}/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  alertmanager:
+    image: prom/alertmanager:${ALERTMANAGER_VERSION:-v0.26.0}
+    container_name: alertmanager-container
+    volumes:
+      - ${ALERTMANAGER_DATA_PATH:-/volume1/grafana/data/alertmanager}:/alertmanager
+      - ${CONFIGS_PATH:-/volume1/grafana/configs}/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    networks:
+      - traefik-public
+      - monitoring-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.jclee.me`)"
+      - "traefik.http.routers.alertmanager.entrypoints=websecure"
+      - "traefik.http.routers.alertmanager.tls.certresolver=cloudflare"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+
+  node-exporter:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:-v1.7.0}
+    container_name: node-exporter-container
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:-v0.47.2}
+    container_name: cadvisor-container
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    privileged: true
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+networks:
+  traefik-public:
+    external: true
+  monitoring-net:
+    name: ${MONITORING_NETWORK:-grafana-monitoring-net}
+    driver: bridge

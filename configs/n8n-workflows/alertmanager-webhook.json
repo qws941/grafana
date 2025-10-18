@@ -1,0 +1,233 @@
+{
+  "name": "AlertManager Webhook Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alerts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-receiver",
+      "name": "AlertManager Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "alertmanager-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse AlertManager webhook payload\nconst alerts = $input.item.json.alerts || [];\nconst status = $input.item.json.status;\nconst groupKey = $input.item.json.groupKey;\n\n// Process each alert\nconst processedAlerts = alerts.map(alert => {\n  const severity = alert.labels.severity || 'info';\n  const alertname = alert.labels.alertname;\n  const service = alert.labels.service || alert.labels.job || 'unknown';\n  const instance = alert.labels.instance || 'unknown';\n  \n  // Extract annotations\n  const summary = alert.annotations.summary || alertname;\n  const description = alert.annotations.description || 'No description';\n  const grafanaUrl = alert.annotations.grafana_url || 'https://grafana.jclee.me';\n  \n  // Format alert message\n  const emoji = {\n    'critical': '🚨',\n    'warning': '⚠️',\n    'info': 'ℹ️'\n  }[severity] || '📢';\n  \n  const statusEmoji = {\n    'firing': '🔥',\n    'resolved': '✅'\n  }[alert.status] || '❓';\n  \n  return {\n    severity,\n    alertname,\n    service,\n    instance,\n    summary,\n    description,\n    grafanaUrl,\n    status: alert.status,\n    startsAt: alert.startsAt,\n    endsAt: alert.endsAt,\n    fingerprint: alert.fingerprint,\n    \n    // Formatted message for notifications\n    message: `${statusEmoji} ${emoji} **${alertname}** (${severity})\\n` +\n             `**Service**: ${service} | ${instance}\\n` +\n             `**Summary**: ${summary}\\n` +\n             `**Description**: ${description}\\n` +\n             `**Dashboard**: ${grafanaUrl}\\n` +\n             `**Status**: ${alert.status}\\n` +\n             `**Started**: ${new Date(alert.startsAt).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'})}`,\n    \n    // For logging to Loki\n    logEntry: {\n      timestamp: new Date().toISOString(),\n      level: severity === 'critical' ? 'error' : severity === 'warning' ? 'warn' : 'info',\n      alertname,\n      service,\n      instance,\n      status: alert.status,\n      summary,\n      description,\n      fingerprint: alert.fingerprint\n    }\n  };\n});\n\nreturn processedAlerts.map(alert => ({ json: alert }));"
+      },
+      "id": "parse-alerts",
+      "name": "Parse Alerts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.severity}}",
+              "operation": "equals",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "filter-critical",
+      "name": "Critical Alerts Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.severity}}",
+              "operation": "equals",
+              "value2": "warning"
+            }
+          ]
+        }
+      },
+      "id": "filter-warning",
+      "name": "Warning Alerts Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log to Loki (Prometheus format)\nconst alert = $input.item.json;\n\n// Format as Loki log line\nconst logLine = JSON.stringify({\n  timestamp: new Date().toISOString(),\n  level: alert.logEntry.level,\n  alertname: alert.alertname,\n  service: alert.service,\n  instance: alert.instance,\n  status: alert.status,\n  severity: alert.severity,\n  summary: alert.summary,\n  description: alert.description,\n  fingerprint: alert.fingerprint\n});\n\nreturn [{\n  json: {\n    streams: [\n      {\n        stream: {\n          job: 'alertmanager',\n          alertname: alert.alertname,\n          severity: alert.severity,\n          service: alert.service\n        },\n        values: [\n          [String(Date.now() * 1000000), logLine]\n        ]\n      }\n    ]\n  }\n}];"
+      },
+      "id": "format-loki-log",
+      "name": "Format Loki Log",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://loki-container:3100/loki/api/v1/push",
+        "options": {
+          "timeout": 5000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "id": "push-to-loki",
+      "name": "Push to Loki",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "content": "={{$json.message}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "log-critical",
+      "name": "Log Critical Alert",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [850, 100],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "={{$json.message}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "log-warning",
+      "name": "Log Warning Alert",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Console log for debugging\nconsole.log('=== CRITICAL ALERT ===');\nconsole.log($json.message);\nconsole.log('=====================');\n\nreturn $input.all();"
+      },
+      "id": "console-critical",
+      "name": "Console Log Critical",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Console log for debugging\nconsole.log('=== WARNING ALERT ===');\nconsole.log($json.message);\nconsole.log('=====================');\n\nreturn $input.all();"
+      },
+      "id": "console-warning",
+      "name": "Console Log Warning",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AlertManager Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alerts": {
+      "main": [
+        [
+          {
+            "node": "Critical Alerts Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Warning Alerts Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Loki Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Alerts Only": {
+      "main": [
+        [
+          {
+            "node": "Console Log Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Warning Alerts Only": {
+      "main": [
+        [
+          {
+            "node": "Console Log Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Loki Log": {
+      "main": [
+        [
+          {
+            "node": "Push to Loki",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "alertmanager-webhook",
+  "meta": {
+    "instanceId": "n8n-grafana-monitoring"
+  },
+  "tags": [
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "alerting"
+    }
+  ]
+}

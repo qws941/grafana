@@ -1,0 +1,627 @@
+{
+  "uid": "traefik-reverse-proxy-reds",
+  "title": "Infrastructure - Traefik Reverse Proxy (REDS)",
+  "tags": ["infrastructure", "traefik", "reverse-proxy", "reds-methodology"],
+  "timezone": "Asia/Seoul",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+      "type": "row",
+      "title": "🎯 Golden Signals (REDS Methodology)"
+    },
+    {
+      "id": 2,
+      "gridPos": {"x": 0, "y": 1, "w": 6, "h": 4},
+      "type": "stat",
+      "title": "🚀 RATE: Total Request Rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(rate(traefik_entrypoint_requests_total[5m]))",
+          "refId": "A",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 50, "color": "yellow"},
+              {"value": 100, "color": "orange"},
+              {"value": 200, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 3,
+      "gridPos": {"x": 6, "y": 1, "w": 6, "h": 4},
+      "type": "stat",
+      "title": "❌ ERRORS: Error Rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(rate(traefik_router_requests_total{code=~\"5..\"}[5m])) / sum(rate(traefik_router_requests_total[5m])) * 100",
+          "refId": "A",
+          "legendFormat": "error %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 1, "color": "yellow"},
+              {"value": 5, "color": "orange"},
+              {"value": 10, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 4,
+      "gridPos": {"x": 12, "y": 1, "w": 6, "h": 4},
+      "type": "stat",
+      "title": "⏱️ DURATION: P99 Response Time",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(traefik_router_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "A",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 1, "color": "yellow"},
+              {"value": 3, "color": "orange"},
+              {"value": 5, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 5,
+      "gridPos": {"x": 18, "y": 1, "w": 6, "h": 4},
+      "type": "stat",
+      "title": "📊 SATURATION: Open Connections",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(traefik_open_connections)",
+          "refId": "A",
+          "legendFormat": "connections"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": null, "color": "green"},
+              {"value": 500, "color": "yellow"},
+              {"value": 1000, "color": "orange"},
+              {"value": 5000, "color": "red"}
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 10,
+      "gridPos": {"x": 0, "y": 5, "w": 24, "h": 1},
+      "type": "row",
+      "title": "📈 Request Rate Metrics"
+    },
+    {
+      "id": 11,
+      "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8},
+      "type": "timeseries",
+      "title": "Request Rate by Entrypoint",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{entrypoint}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8},
+      "type": "timeseries",
+      "title": "Top 10 Routers by Request Rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "topk(10, sum by (router) (rate(traefik_router_requests_total[5m])))",
+          "refId": "A",
+          "legendFormat": "{{router}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 20,
+      "gridPos": {"x": 0, "y": 14, "w": 24, "h": 1},
+      "type": "row",
+      "title": "⚠️ Error Analysis"
+    },
+    {
+      "id": 21,
+      "gridPos": {"x": 0, "y": 15, "w": 12, "h": 8},
+      "type": "timeseries",
+      "title": "Error Rate by Status Code",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (code) (rate(traefik_router_requests_total{code=~\"4..|5..\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 22,
+      "gridPos": {"x": 12, "y": 15, "w": 12, "h": 8},
+      "type": "table",
+      "title": "Top 10 Routers by Error Rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "topk(10, sum by (router, service) (rate(traefik_router_requests_total{code=~\"5..\"}[5m])) / sum by (router, service) (rate(traefik_router_requests_total[5m])) * 100)",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true},
+            "renameByName": {
+              "router": "Router",
+              "service": "Service",
+              "Value": "Error Rate (%)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Error Rate (%)"},
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": null, "color": "green"},
+                    {"value": 1, "color": "yellow"},
+                    {"value": 5, "color": "orange"},
+                    {"value": 10, "color": "red"}
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 30,
+      "gridPos": {"x": 0, "y": 23, "w": 24, "h": 1},
+      "type": "row",
+      "title": "⏱️ Performance Metrics"
+    },
+    {
+      "id": 31,
+      "gridPos": {"x": 0, "y": 24, "w": 16, "h": 8},
+      "type": "timeseries",
+      "title": "Response Time Percentiles (All Routers)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(traefik_router_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "A",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum(rate(traefik_router_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "B",
+          "legendFormat": "P90"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(traefik_router_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "C",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(traefik_router_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "D",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 32,
+      "gridPos": {"x": 16, "y": 24, "w": 8, "h": 8},
+      "type": "table",
+      "title": "Top 10 Slowest Routers (P99)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.99, sum by (router, le) (rate(traefik_router_request_duration_seconds_bucket[5m]))))",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true},
+            "renameByName": {
+              "router": "Router",
+              "Value": "P99 Latency (s)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "P99 Latency (s)"},
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": null, "color": "green"},
+                    {"value": 1, "color": "yellow"},
+                    {"value": 3, "color": "orange"},
+                    {"value": 5, "color": "red"}
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 40,
+      "gridPos": {"x": 0, "y": 32, "w": 24, "h": 1},
+      "type": "row",
+      "title": "📊 Traffic Volume & TLS"
+    },
+    {
+      "id": 41,
+      "gridPos": {"x": 0, "y": 33, "w": 12, "h": 8},
+      "type": "timeseries",
+      "title": "Traffic Volume by Entrypoint",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_bytes_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{entrypoint}} IN"
+        },
+        {
+          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_responses_bytes_total[5m])) * -1",
+          "refId": "B",
+          "legendFormat": "{{entrypoint}} OUT"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 42,
+      "gridPos": {"x": 12, "y": 33, "w": 12, "h": 8},
+      "type": "timeseries",
+      "title": "TLS vs Non-TLS Requests",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_tls_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{entrypoint}} TLS"
+        },
+        {
+          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_total[5m])) - sum by (entrypoint) (rate(traefik_entrypoint_requests_tls_total[5m]))",
+          "refId": "B",
+          "legendFormat": "{{entrypoint}} Non-TLS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "never"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "last", "max"]
+        }
+      }
+    },
+    {
+      "id": 50,
+      "gridPos": {"x": 0, "y": 41, "w": 24, "h": 1},
+      "type": "row",
+      "title": "🔧 System Health"
+    },
+    {
+      "id": 51,
+      "gridPos": {"x": 0, "y": 42, "w": 8, "h": 4},
+      "type": "stat",
+      "title": "Traefik Uptime",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "up{job=\"traefik\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "DOWN", "color": "red"},
+                "1": {"text": "UP", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 52,
+      "gridPos": {"x": 8, "y": 42, "w": 8, "h": 4},
+      "type": "stat",
+      "title": "Config Reload Success",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "traefik_config_last_reload_success",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "FAILED", "color": "red"},
+                "1": {"text": "SUCCESS", "color": "green"}
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 53,
+      "gridPos": {"x": 16, "y": 42, "w": 8, "h": 4},
+      "type": "stat",
+      "title": "Total Config Reloads",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "traefik_config_reloads_total",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    }
+  ]
+}

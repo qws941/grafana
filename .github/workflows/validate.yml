@@ -1,0 +1,217 @@
+name: Validate Configuration
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  validate-yaml:
+    name: Validate YAML Files
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install yamllint
+        run: pip install yamllint
+      
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML files in configs/..."
+          yamllint -c .yamllint.yml configs/ || true
+      
+      - name: Check for duplicate keys
+        run: |
+          echo "Checking for duplicate keys in YAML files..."
+          for file in $(find configs/ -name "*.yml" -o -name "*.yaml"); do
+            python -c "import yaml; yaml.safe_load(open('$file'))" || {
+              echo "❌ Invalid YAML: $file"
+              exit 1
+            }
+          done
+
+  validate-json:
+    name: Validate JSON Files
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate JSON syntax
+        run: |
+          echo "Validating JSON files in configs/provisioning/dashboards/..."
+          for file in $(find configs/provisioning/dashboards -name "*.json" 2>/dev/null || true); do
+            jq empty "$file" || {
+              echo "❌ Invalid JSON: $file"
+              exit 1
+            }
+            echo "✅ Valid: $file"
+          done
+
+  validate-docker-compose:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create .env file
+        run: cp .env.example .env
+      
+      - name: Validate docker-compose.yml
+        run: |
+          echo "Validating docker-compose.yml..."
+          docker compose config > /dev/null
+          echo "✅ docker-compose.yml is valid"
+      
+      - name: Check for version field (obsolete)
+        run: |
+          if grep -q "^version:" docker-compose.yml; then
+            echo "⚠️  Warning: 'version' field is obsolete in Docker Compose"
+            echo "Consider removing it: https://docs.docker.com/compose/compose-file/"
+          fi
+
+  validate-scripts:
+    name: Validate Shell Scripts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      
+      - name: Run shellcheck
+        run: |
+          echo "Running shellcheck on all shell scripts..."
+          find scripts/ -name "*.sh" -exec shellcheck -x {} + || true
+      
+      - name: Check script permissions
+        run: |
+          echo "Checking script executability..."
+          for script in scripts/*.sh scripts/lib/*.sh; do
+            if [ -f "$script" ]; then
+              if [ ! -x "$script" ]; then
+                echo "⚠️  Not executable: $script"
+              else
+                echo "✅ Executable: $script"
+              fi
+            fi
+          done
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for secrets in code
+        run: |
+          echo "Checking for hardcoded secrets..."
+          
+          # Check for common secret patterns
+          if grep -r -i "password\s*=\s*['\"]" --exclude-dir=.git --exclude=validate.yml .; then
+            echo "❌ Found hardcoded passwords"
+            exit 1
+          fi
+          
+          if grep -r -i "api[_-]key\s*=\s*['\"]" --exclude-dir=.git --exclude=validate.yml .; then
+            echo "❌ Found hardcoded API keys"
+            exit 1
+          fi
+          
+          echo "✅ No obvious secrets found"
+      
+      - name: Check .env is gitignored
+        run: |
+          if [ -f .env ] && ! grep -q "^\.env$" .gitignore; then
+            echo "❌ .env file exists but is not in .gitignore"
+            exit 1
+          fi
+          echo "✅ Environment files properly gitignored"
+
+  documentation-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check required documentation
+        run: |
+          echo "Checking for required documentation files..."
+          
+          required_files=(
+            "README.md"
+            "CLAUDE.md"
+            ".env.example"
+            "resume/README.md"
+            "demo/README.md"
+          )
+          
+          missing=()
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              missing+=("$file")
+              echo "❌ Missing: $file"
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "⚠️  ${#missing[@]} required file(s) missing"
+            exit 1
+          fi
+      
+      - name: Check documentation freshness
+        run: |
+          echo "Checking documentation last modified dates..."
+          find docs/ -name "*.md" -mtime +90 -ls || true
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-yaml, validate-json, validate-docker-compose, validate-scripts, security-scan, documentation-check]
+    if: always()
+    
+    steps:
+      - name: Check job results
+        run: |
+          echo "## Validation Summary"
+          echo ""
+          echo "- YAML Validation: ${{ needs.validate-yaml.result }}"
+          echo "- JSON Validation: ${{ needs.validate-json.result }}"
+          echo "- Docker Compose: ${{ needs.validate-docker-compose.result }}"
+          echo "- Shell Scripts: ${{ needs.validate-scripts.result }}"
+          echo "- Security Scan: ${{ needs.security-scan.result }}"
+          echo "- Documentation: ${{ needs.documentation-check.result }}"
+          
+          if [ "${{ needs.validate-yaml.result }}" != "success" ] || \
+             [ "${{ needs.validate-json.result }}" != "success" ] || \
+             [ "${{ needs.validate-docker-compose.result }}" != "success" ] || \
+             [ "${{ needs.validate-scripts.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.documentation-check.result }}" != "success" ]; then
+            echo ""
+            echo "❌ Some validation jobs failed"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All validations passed!"

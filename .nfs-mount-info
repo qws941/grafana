@@ -1,0 +1,17 @@
+# NFS Mount Information
+
+This directory is NFS-mounted from Synology NAS.
+
+Source: 192.168.50.215:/volume1/grafana
+Mount point: /home/jclee/app/grafana
+Type: NFS v3
+Options: rw,noatime,hard
+
+All file changes are instantly synchronized at the filesystem level.
+No sync scripts or services are needed.
+
+Verification:
+  mount | grep grafana
+
+Mount configuration:
+  cat /etc/fstab | grep grafana

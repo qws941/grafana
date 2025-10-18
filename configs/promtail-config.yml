@@ -1,0 +1,85 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki-container:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker containers auto-discovery
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: network
+            values: [grafana-monitoring-net]
+
+    relabel_configs:
+      # Container name
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+
+      # Container ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+      # Image name
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
+
+      # Docker labels
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'compose_project'
+
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            time: time
+            logger: logger
+          source: message
+
+      # Extract log level
+      - labels:
+          level:
+
+      # Parse timestamp
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+
+      # Set output
+      - output:
+          source: msg
+
+  # System logs (if available)
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/*.log
+
+    pipeline_stages:
+      - match:
+          selector: '{job="system"}'
+          stages:
+            - regex:
+                expression: '^(?P<time>\S+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<process>\S+):\s+(?P<message>.*)$'
+            - labels:
+                host:
+                process:
+            - output:
+                source: message

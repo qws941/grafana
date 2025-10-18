@@ -1,0 +1,428 @@
+{
+  "uid": "codebase-health-analysis",
+  "title": "Codebase Health Analysis",
+  "tags": ["analysis", "quality", "security", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "type": "stat",
+      "title": "Overall Score",
+      "targets": [{
+        "expr": "85",
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 85}
+            ]
+          },
+          "mappings": [{
+            "type": "value",
+            "options": {"85": {"text": "A- (85/100)", "color": "green"}}
+          }]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "type": "stat",
+      "title": "Code Quality",
+      "targets": [{
+        "expr": "88",
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 85}
+            ]
+          },
+          "mappings": [{
+            "type": "value",
+            "options": {"88": {"text": "A- (88/100)", "color": "green"}}
+          }]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "type": "stat",
+      "title": "Security",
+      "targets": [{
+        "expr": "82",
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 80}
+            ]
+          },
+          "mappings": [{
+            "type": "value",
+            "options": {"82": {"text": "B+ (82/100)", "color": "green"}}
+          }]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "type": "stat",
+      "title": "Performance",
+      "targets": [{
+        "expr": "78",
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 80}
+            ]
+          },
+          "mappings": [{
+            "type": "value",
+            "options": {"78": {"text": "B+ (78/100)", "color": "yellow"}}
+          }]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 4},
+      "type": "gauge",
+      "title": "Category Scores",
+      "targets": [
+        {
+          "expr": "88",
+          "legendFormat": "Code Quality",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "82",
+          "legendFormat": "Security",
+          "refId": "B",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "78",
+          "legendFormat": "Performance",
+          "refId": "C",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "87",
+          "legendFormat": "Architecture",
+          "refId": "D",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "85",
+          "legendFormat": "Monitoring Stack",
+          "refId": "E",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "options": {
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 85}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 4},
+      "type": "bargauge",
+      "title": "Issues by Priority",
+      "targets": [
+        {
+          "expr": "3",
+          "legendFormat": "P0-Critical",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "6",
+          "legendFormat": "P1-High",
+          "refId": "B",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "3",
+          "legendFormat": "P2-Medium",
+          "refId": "C",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "2",
+          "legendFormat": "P3-Low",
+          "refId": "D",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 3},
+              {"color": "red", "value": 5}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "P0-Critical"},
+            "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "P1-High"},
+            "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 10},
+      "type": "table",
+      "title": "Critical Issues (P0)",
+      "targets": [{
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "showHeader": true
+      },
+      "transformations": [{
+        "id": "organize",
+        "options": {
+          "excludeByName": {},
+          "indexByName": {},
+          "renameByName": {}
+        }
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "displayMode": "auto"
+          }
+        }
+      },
+      "overrides": []
+    },
+    {
+      "id": 8,
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 18},
+      "type": "timeseries",
+      "title": "Prometheus TSDB Size Growth",
+      "targets": [{
+        "expr": "prometheus_tsdb_storage_blocks_bytes / 1024 / 1024 / 1024",
+        "legendFormat": "TSDB Size (GB)",
+        "refId": "A",
+        "datasource": {"type": "prometheus", "uid": "prometheus"}
+      }],
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "decgbytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 18},
+      "type": "timeseries",
+      "title": "Container Resource Usage",
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{name=~\"grafana-container|prometheus-container|loki-container\"} / 1024 / 1024",
+          "legendFormat": "{{name}}",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "decmbytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1000},
+              {"color": "red", "value": 2000}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 24},
+      "type": "stat",
+      "title": "Key Metrics Summary",
+      "targets": [
+        {
+          "expr": "count(up{job=~\"grafana|prometheus|loki|alertmanager\"})",
+          "legendFormat": "Core Services",
+          "refId": "A",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "count(prometheus_tsdb_head_series)",
+          "legendFormat": "Time Series",
+          "refId": "B",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "96",
+          "legendFormat": "Total Files",
+          "refId": "C",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "expr": "12",
+          "legendFormat": "Dashboards",
+          "refId": "D",
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        }
+      ],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "enable": true,
+        "expr": "ALERTS{alertstate=\"firing\"}",
+        "iconColor": "red",
+        "name": "Active Alerts",
+        "step": "60s",
+        "tagKeys": "alertname",
+        "textFormat": "{{alertname}}: {{summary}}",
+        "titleFormat": "Alert"
+      }
+    ]
+  }
+}

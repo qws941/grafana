@@ -1,0 +1,347 @@
+# Sample Promtail Configuration
+# This demonstrates how to configure Promtail for log collection
+# Location: configs/promtail-config.yml
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+# Loki client configuration
+clients:
+  - url: http://loki-container:3100/loki/api/v1/push
+    # Optional: Add authentication if needed
+    # basic_auth:
+    #   username: admin
+    #   password: secret
+
+    # Batch configuration
+    batchwait: 1s      # Max wait before sending batch
+    batchsize: 1048576 # Max batch size (1MB)
+
+    # Retry configuration
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+
+    # External labels (added to all logs)
+    external_labels:
+      cluster: production
+      environment: prod
+
+positions:
+  # File to store positions (resume after restart)
+  filename: /tmp/positions.yaml
+
+# Scrape configurations
+scrape_configs:
+  # Job 1: Docker containers (auto-discovery)
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: network
+            values: [grafana-monitoring-net]
+
+    # Relabeling rules
+    relabel_configs:
+      # Use container name as job label
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'job'
+
+      # Add container ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+      # Add container image
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
+
+      # Add container labels as Loki labels
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      # Set log path
+      - source_labels: ['__meta_docker_container_id']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/$1-json.log'
+
+  # Job 2: System logs
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/*.log
+
+    # Pipeline stages for parsing
+    pipeline_stages:
+      # Stage 1: Extract timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # Stage 2: Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            message: message
+            service: service
+
+      # Stage 3: Set log level as label
+      - labels:
+          level:
+          service:
+
+      # Stage 4: Drop debug logs in production
+      - match:
+          selector: '{level="debug"}'
+          action: drop
+
+  # Job 3: Application logs (file-based)
+  - job_name: application-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: my-app
+          environment: production
+          __path__: /var/log/my-app/*.log
+
+    # Pipeline stages for custom parsing
+    pipeline_stages:
+      # Stage 1: Regex parsing
+      - regex:
+          expression: '^(?P<timestamp>\S+) (?P<level>\S+) (?P<component>\S+) - (?P<message>.*)$'
+
+      # Stage 2: Parse timestamp
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02T15:04:05.000Z'
+
+      # Stage 3: Extract labels
+      - labels:
+          level:
+          component:
+
+      # Stage 4: Filter by severity
+      - match:
+          selector: '{level=~"ERROR|FATAL"}'
+          stages:
+            # Add alert label for errors
+            - labels:
+                alert: 'true'
+
+  # Job 4: Nginx access logs
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          log_type: access
+          __path__: /var/log/nginx/access.log
+
+    # Parse Nginx combined log format
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<time_local>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)"'
+
+      - timestamp:
+          source: time_local
+          format: '02/Jan/2006:15:04:05 -0700'
+
+      - labels:
+          method:
+          status:
+
+      # Metrics: Count requests by status code
+      - metrics:
+          nginx_requests_total:
+            type: Counter
+            description: "Total Nginx requests"
+            source: status
+            config:
+              action: inc
+              match_all: true
+
+  # Job 5: Nginx error logs
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          log_type: error
+          __path__: /var/log/nginx/error.log
+
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\S+ \S+) \[(?P<level>\S+)\] (?P<pid>\d+)#(?P<tid>\d+): (?P<message>.*)$'
+
+      - timestamp:
+          source: timestamp
+          format: '2006/01/02 15:04:05'
+
+      - labels:
+          level:
+
+## Pipeline Stages Explained
+
+# 1. regex - Extract fields using regular expressions
+#    - expression: Regex pattern with named capture groups
+#    - Use (?P<name>pattern) syntax
+#    - Extracted fields become available for subsequent stages
+
+# 2. json - Parse JSON-formatted logs
+#    - expressions: Map JSON fields to internal fields
+#    - Handles nested JSON automatically
+#    - More efficient than regex for structured logs
+
+# 3. timestamp - Parse and set log timestamp
+#    - source: Field containing timestamp
+#    - format: Go time format string or predefined (RFC3339, Unix)
+#    - Without this, Loki uses ingestion time
+
+# 4. labels - Add extracted fields as Loki labels
+#    - Labels enable fast filtering in queries
+#    - WARNING: High cardinality labels (e.g., user_id) can cause performance issues
+#    - Use sparingly, prefer storing in log line
+
+# 5. match - Conditional processing
+#    - selector: LogQL query to match logs
+#    - stages: Pipeline stages to apply if matched
+#    - action: drop (discard logs) or keep
+
+# 6. metrics - Export Prometheus metrics from logs
+#    - type: Counter, Gauge, Histogram
+#    - Enables alerting on log patterns
+#    - Example: Alert on error log rate
+
+# 7. output - Modify log line output
+#    - source: Field to use as final log message
+#    - Useful after parsing to restructure logs
+
+## Label Best Practices
+
+# Good labels (low cardinality):
+# - job: Service name (e.g., "nginx", "my-app")
+# - level: Log level (e.g., "error", "info")
+# - environment: Environment (e.g., "prod", "staging")
+# - service: Service name within job
+# - container_name: Container name
+
+# Bad labels (high cardinality):
+# - user_id: Unique per user (millions of values)
+# - request_id: Unique per request
+# - timestamp: Unique per log line
+# - full_path: Can have thousands of unique paths
+
+# Rule of Thumb:
+# - Labels: For filtering (WHERE clause)
+# - Log content: For searching (LIKE clause)
+# - Max ~10 labels per stream
+# - Max ~100 unique values per label
+
+## Common Use Cases
+
+# Use Case 1: Multi-line logs (stack traces)
+# pipeline_stages:
+#   - multiline:
+#       firstline: '^\d{4}-\d{2}-\d{2}'
+#       max_wait_time: 3s
+
+# Use Case 2: Drop noisy logs
+# pipeline_stages:
+#   - match:
+#       selector: '{job="app"} |= "health check"'
+#       action: drop
+
+# Use Case 3: Rename labels
+# pipeline_stages:
+#   - template:
+#       source: renamed_label
+#       template: '{{ .old_label }}'
+#   - labels:
+#       renamed_label:
+
+# Use Case 4: Rate limiting
+# pipeline_stages:
+#   - limit:
+#       rate: 100
+#       burst: 200
+#       drop: true
+
+## Debugging Promtail
+
+# Check Promtail metrics:
+# curl http://promtail-container:9080/metrics
+
+# Key metrics:
+# - promtail_targets_active_total - Number of active targets
+# - promtail_read_bytes_total - Bytes read from targets
+# - promtail_sent_entries_total - Entries sent to Loki
+# - promtail_dropped_entries_total - Dropped entries (errors)
+
+# Check Promtail logs:
+# sudo docker logs promtail-container --tail 100
+
+# Test log ingestion:
+# echo "test log message" >> /var/log/test.log
+
+# Query in Loki:
+# {job="system"} |= "test log message"
+
+## Loki Retention and Limits
+
+# Loki limits (configured in Loki, not Promtail):
+# - retention_period: 3 days (default in this stack)
+# - max_query_length: 721h (30 days)
+# - reject_old_samples: true (rejects logs older than retention)
+
+# If logs are rejected:
+# 2025/10/17 12:00:00 http: server gave HTTP response to HTTPS client
+# Check: Clock sync, retention settings, log timestamps
+
+## Performance Tuning
+
+# For high-volume logging (>10K logs/sec):
+# clients:
+#   - url: http://loki:3100/loki/api/v1/push
+#     batchwait: 100ms     # Reduce wait time
+#     batchsize: 5242880   # Increase batch size (5MB)
+#     timeout: 30s         # Increase timeout
+#
+#     queue_config:
+#       capacity: 10000    # Increase queue size
+#       max_shards: 10     # Increase parallelism
+
+## Security Considerations
+
+# 1. Don't log sensitive data
+#    - Passwords, tokens, API keys
+#    - PII (emails, phone numbers, addresses)
+#    - Use pipeline stages to redact if necessary
+
+# 2. Use authentication for Loki
+#    - Add basic_auth to clients config
+#    - Or use reverse proxy with authentication
+
+# 3. Secure Promtail metrics endpoint
+#    - Restrict access to /metrics endpoint
+#    - Use firewall or network policies
+
+## Testing Configuration
+
+# Validate syntax:
+# promtail -config.file=promtail-config.yml -dry-run
+
+# Test with local Loki:
+# promtail -config.file=promtail-config.yml
+
+# View active targets:
+# curl http://promtail-container:9080/targets

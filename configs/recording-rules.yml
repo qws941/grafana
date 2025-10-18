@@ -1,0 +1,219 @@
+groups:
+  # Performance recording rules
+  - name: performance_recording_rules
+    interval: 30s
+    rules:
+      # CPU metrics
+      - record: instance:node_cpu_utilization:rate5m
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: instance:node_load1_normalized
+        expr: node_load1 / count without (cpu, mode) (node_cpu_seconds_total{mode="idle"})
+
+      # Memory metrics
+      - record: instance:node_memory_utilization:ratio
+        expr: 1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+
+      - record: instance:node_memory_available:bytes
+        expr: node_memory_MemAvailable_bytes
+
+      # Disk metrics
+      - record: instance:node_disk_utilization:ratio
+        expr: 1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.*"})
+
+      - record: instance:node_disk_io_time:rate5m
+        expr: rate(node_disk_io_time_seconds_total[5m])
+
+      # Network metrics
+      - record: instance:node_network_receive_bytes:rate5m
+        expr: rate(node_network_receive_bytes_total[5m])
+
+      - record: instance:node_network_transmit_bytes:rate5m
+        expr: rate(node_network_transmit_bytes_total[5m])
+
+  # Container recording rules
+  - name: container_recording_rules
+    interval: 30s
+    rules:
+      # Container CPU
+      - record: container:cpu_usage:rate5m
+        expr: rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100
+
+      # Container memory
+      - record: container:memory_usage:bytes
+        expr: container_memory_usage_bytes{name!=""}
+
+      - record: container:memory_working_set:bytes
+        expr: container_memory_working_set_bytes{name!=""}
+
+      # Container network
+      - record: container:network_receive_bytes:rate5m
+        expr: rate(container_network_receive_bytes_total{name!=""}[5m])
+
+      - record: container:network_transmit_bytes:rate5m
+        expr: rate(container_network_transmit_bytes_total{name!=""}[5m])
+
+  # Application recording rules (n8n)
+  - name: n8n_recording_rules
+    interval: 30s
+    rules:
+      # Workflow metrics (updated 2025-10-16 with validated metrics)
+      - record: n8n:workflows:start_rate
+        expr: rate(n8n_workflow_started_total[5m]) * 60
+
+      - record: n8n:workflows:active_count
+        expr: n8n_active_workflow_count
+
+      - record: n8n:cache:miss_rate_percent
+        expr: rate(n8n_cache_misses_total[5m]) / (rate(n8n_cache_hits_total[5m]) + rate(n8n_cache_misses_total[5m])) * 100
+
+      - record: n8n:queue:enqueue_rate
+        expr: rate(n8n_queue_job_enqueued_total[5m]) * 60
+
+      # Node.js metrics
+      - record: n8n:nodejs:eventloop_lag_p99
+        expr: n8n_nodejs_eventloop_lag_p99_seconds
+
+      - record: n8n:nodejs:memory_usage_mb
+        expr: n8n_nodejs_heap_size_used_bytes / 1024 / 1024
+
+      - record: n8n:nodejs:gc_duration_avg
+        expr: rate(n8n_nodejs_gc_duration_seconds_sum[5m]) / rate(n8n_nodejs_gc_duration_seconds_count[5m])
+
+  # Grafana stack health
+  - name: grafana_stack_recording_rules
+    interval: 30s
+    rules:
+      # Service availability
+      - record: service:up:count
+        expr: count(up == 1)
+
+      - record: service:down:count
+        expr: count(up == 0)
+
+      # Prometheus metrics
+      - record: prometheus:ingestion_rate:samples_per_second
+        expr: rate(prometheus_tsdb_head_samples_appended_total[5m])
+
+      - record: prometheus:storage:bytes_used
+        expr: prometheus_tsdb_storage_blocks_bytes
+
+      # Loki metrics
+      - record: loki:ingestion_rate:bytes_per_second
+        expr: rate(loki_distributor_bytes_received_total[5m])
+
+      - record: loki:streams:count
+        expr: loki_ingester_streams
+
+  # AI Agent cost recording rules
+  # DISABLED: These rules require mcp_ai_* metrics to be instrumented first
+  # Uncomment after implementing AI metrics exporter
+  # See docs/AI-METRICS-SPECIFICATION.md for implementation guide
+  # Validation required before enabling (learned from 2025-10-13 incident)
+  #
+  # - name: ai_cost_recording_rules
+  #   interval: 30s
+  #   rules:
+  #     # Request rates
+  #     - record: ai:requests:rate5m
+  #       expr: rate(mcp_ai_requests_total[5m]) * 60
+  #
+  #     - record: ai:requests:success_rate
+  #       expr: rate(mcp_ai_requests_total{status="success"}[5m]) / rate(mcp_ai_requests_total[5m]) * 100
+  #
+  #     # Token consumption
+  #     - record: ai:tokens:rate5m
+  #       expr: rate(mcp_ai_tokens_total[5m]) * 60
+  #
+  #     - record: ai:tokens:per_request_avg
+  #       expr: rate(mcp_ai_tokens_total[5m]) / rate(mcp_ai_requests_total[5m])
+  #
+  #     # Cost metrics
+  #     - record: ai:cost:hourly_usd
+  #       expr: rate(mcp_ai_cost_usd_total[1h]) * 3600
+  #
+  #     - record: ai:cost:daily_projection_usd
+  #       expr: rate(mcp_ai_cost_usd_total[1h]) * 3600 * 24
+  #
+  #     # Latency percentiles
+  #     - record: ai:duration:p50
+  #       expr: histogram_quantile(0.50, rate(mcp_ai_request_duration_seconds_bucket[5m]))
+  #
+  #     - record: ai:duration:p95
+  #       expr: histogram_quantile(0.95, rate(mcp_ai_request_duration_seconds_bucket[5m]))
+  #
+  #     - record: ai:duration:p99
+  #       expr: histogram_quantile(0.99, rate(mcp_ai_request_duration_seconds_bucket[5m]))
+
+  # Traefik reverse proxy recording rules (REDS methodology)
+  - name: traefik_recording_rules
+    interval: 30s
+    rules:
+      # Rate: Requests per minute
+      - record: traefik:requests:rate5m
+        expr: rate(traefik_service_requests_total[5m]) * 60
+
+      # Errors: Error rate percentage
+      - record: traefik:requests:error_rate_percent
+        expr: rate(traefik_service_requests_total{code=~"5.."}[5m]) / rate(traefik_service_requests_total[5m]) * 100
+
+      # Duration: Response time percentiles
+      - record: traefik:request_duration:p50
+        expr: histogram_quantile(0.50, rate(traefik_service_request_duration_seconds_bucket[5m]))
+
+      - record: traefik:request_duration:p95
+        expr: histogram_quantile(0.95, rate(traefik_service_request_duration_seconds_bucket[5m]))
+
+      - record: traefik:request_duration:p99
+        expr: histogram_quantile(0.99, rate(traefik_service_request_duration_seconds_bucket[5m]))
+
+      # Saturation: Active connections
+      - record: traefik:connections:active
+        expr: traefik_service_open_connections
+
+  # HYCU Automation recording rules (REDS methodology)
+  - name: hycu_recording_rules
+    interval: 30s
+    rules:
+      # Rate: Login and attendance rates
+      - record: hycu:logins:success_rate_5m
+        expr: rate(hycu_login_attempts_total{status="success"}[5m]) * 60
+
+      - record: hycu:logins:failure_rate_5m
+        expr: rate(hycu_login_attempts_total{status="failure"}[5m]) * 60
+
+      - record: hycu:attendance:submission_rate_5m
+        expr: rate(hycu_attendance_submissions_total[5m]) * 60
+
+      # Errors: Error rates and counts
+      - record: hycu:errors:total_rate_5m
+        expr: rate(hycu_automation_errors_total[5m]) * 60
+
+      - record: hycu:errors:login_failure_rate_5m
+        expr: rate(hycu_automation_errors_total{error_type="login_failed"}[5m]) * 60
+
+      - record: hycu:errors:success_ratio
+        expr: rate(hycu_login_attempts_total{status="success"}[5m]) / (rate(hycu_login_attempts_total{status="success"}[5m]) + rate(hycu_login_attempts_total{status="failure"}[5m]))
+
+      # Duration: Operation latencies
+      - record: hycu:login:duration_p50
+        expr: histogram_quantile(0.50, rate(hycu_login_duration_seconds_bucket[5m]))
+
+      - record: hycu:login:duration_p90
+        expr: histogram_quantile(0.90, rate(hycu_login_duration_seconds_bucket[5m]))
+
+      - record: hycu:login:duration_p95
+        expr: histogram_quantile(0.95, rate(hycu_login_duration_seconds_bucket[5m]))
+
+      - record: hycu:login:duration_p99
+        expr: histogram_quantile(0.99, rate(hycu_login_duration_seconds_bucket[5m]))
+
+      - record: hycu:attendance:duration_p95
+        expr: histogram_quantile(0.95, rate(hycu_attendance_duration_seconds_bucket[5m]))
+
+      # Saturation: Resource utilization
+      - record: hycu:courses:completion_ratio
+        expr: hycu_attended_courses / hycu_active_courses
+
+      - record: hycu:automation:health_score
+        expr: hycu_session_valid * (1 - (hycu_consecutive_failures / 10))

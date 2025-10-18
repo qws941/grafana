@@ -1,0 +1,260 @@
+# Sample Recording Rule Configuration
+# This demonstrates how to create recording rules following best practices
+# Location: configs/recording-rules.yml
+
+groups:
+  # Performance Metrics Recording Rules
+  - name: example_performance_recording_rules
+    interval: 30s
+    rules:
+      # Request rate per service (requests per minute)
+      - record: service:http_requests:rate1m
+        expr: |
+          rate(http_requests_total[1m]) * 60
+        labels:
+          aggregation: rate
+
+      # Request rate per service per minute (5m avg)
+      - record: service:http_requests:rate5m
+        expr: |
+          rate(http_requests_total[5m]) * 60
+        labels:
+          aggregation: rate
+
+      # Error rate per service (percentage)
+      - record: service:http_errors:rate_percent
+        expr: |
+          (
+            rate(http_requests_total{status=~"5.."}[5m])
+            /
+            rate(http_requests_total[5m])
+          ) * 100
+        labels:
+          aggregation: error_rate
+
+      # Response time P50 per service
+      - record: service:http_request_duration:p50
+        expr: |
+          histogram_quantile(0.50,
+            rate(http_request_duration_seconds_bucket[5m])
+          )
+        labels:
+          quantile: "0.50"
+
+      # Response time P90 per service
+      - record: service:http_request_duration:p90
+        expr: |
+          histogram_quantile(0.90,
+            rate(http_request_duration_seconds_bucket[5m])
+          )
+        labels:
+          quantile: "0.90"
+
+      # Response time P99 per service
+      - record: service:http_request_duration:p99
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket[5m])
+          )
+        labels:
+          quantile: "0.99"
+
+  # Resource Utilization Recording Rules
+  - name: example_resource_recording_rules
+    interval: 30s
+    rules:
+      # CPU usage per container (percentage)
+      - record: container:cpu_usage:percent
+        expr: |
+          rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100
+        labels:
+          resource: cpu
+
+      # Memory usage per container (bytes)
+      - record: container:memory_usage:bytes
+        expr: |
+          container_memory_usage_bytes{name!=""}
+        labels:
+          resource: memory
+
+      # Memory usage per container (percentage)
+      - record: container:memory_usage:percent
+        expr: |
+          (
+            container_memory_usage_bytes{name!=""}
+            /
+            container_spec_memory_limit_bytes{name!=""}
+          ) * 100
+        labels:
+          resource: memory
+
+      # Network receive rate per container (bytes/sec)
+      - record: container:network_receive:rate
+        expr: |
+          rate(container_network_receive_bytes_total{name!=""}[5m])
+        labels:
+          resource: network
+          direction: receive
+
+      # Network transmit rate per container (bytes/sec)
+      - record: container:network_transmit:rate
+        expr: |
+          rate(container_network_transmit_bytes_total{name!=""}[5m])
+        labels:
+          resource: network
+          direction: transmit
+
+  # Business Metrics Recording Rules
+  - name: example_business_recording_rules
+    interval: 1m
+    rules:
+      # Total active users (5m avg)
+      - record: business:active_users:5m
+        expr: |
+          avg_over_time(active_users_total[5m])
+        labels:
+          metric_type: business
+
+      # Successful transactions per minute
+      - record: business:transactions_success:rate1m
+        expr: |
+          rate(transactions_total{status="success"}[1m]) * 60
+        labels:
+          metric_type: business
+          status: success
+
+      # Failed transactions per minute
+      - record: business:transactions_failed:rate1m
+        expr: |
+          rate(transactions_total{status="failed"}[1m]) * 60
+        labels:
+          metric_type: business
+          status: failed
+
+      # Transaction success rate (percentage)
+      - record: business:transactions_success:rate_percent
+        expr: |
+          (
+            rate(transactions_total{status="success"}[5m])
+            /
+            rate(transactions_total[5m])
+          ) * 100
+        labels:
+          metric_type: business
+
+## Recording Rule Best Practices
+
+# 1. Naming Convention
+#    Format: level:metric:operations
+#    - level: Aggregation level (service, container, job, instance)
+#    - metric: Base metric name
+#    - operations: Operations performed (rate, sum, avg, percentile)
+#    Example: service:http_requests:rate5m
+
+# 2. Evaluation Interval
+#    - Match Prometheus global scrape interval (typically 30s)
+#    - Use longer intervals (1m-5m) for expensive queries
+#    - Balance between freshness and resource usage
+
+# 3. Time Windows
+#    - Use consistent time windows (1m, 5m, 15m)
+#    - Shorter windows (1m) for real-time metrics
+#    - Longer windows (5m+) for smoothed/averaged metrics
+#    - Match rate() window to recording rule interval
+
+# 4. Label Preservation
+#    - Add descriptive labels to recorded metrics
+#    - aggregation: Type of aggregation performed
+#    - quantile: For percentile metrics
+#    - resource: For resource utilization metrics
+
+# 5. Query Optimization
+#    - Pre-compute expensive queries (percentiles, ratios)
+#    - Reduce dashboard query load
+#    - Enable faster alerting
+#    - Typical use case: queries taking >5s to execute
+
+# 6. Common Patterns
+#    - Rate calculations: rate(counter[5m]) * 60
+#    - Percentages: (part / total) * 100
+#    - Percentiles: histogram_quantile(0.99, rate(bucket[5m]))
+#    - Averages: avg_over_time(gauge[5m])
+
+## Use Cases for Recording Rules
+
+# Use Case 1: Dashboard Performance
+# Problem: Dashboard with 20 panels, each calculating rate()
+# Solution: Pre-compute rates as recording rules
+# Benefit: Dashboard loads 10x faster
+
+# Use Case 2: Complex Aggregations
+# Problem: Multi-level aggregations (sum by service, then by cluster)
+# Solution: Create intermediate recording rules
+# Benefit: Reduces query complexity, improves reliability
+
+# Use Case 3: Alert Efficiency
+# Problem: Alert rules with expensive queries cause Prometheus lag
+# Solution: Use recording rules in alert expressions
+# Benefit: Faster alert evaluation, reduced resource usage
+
+# Use Case 4: Cross-Service Metrics
+# Problem: Need to correlate metrics across multiple services
+# Solution: Pre-compute cross-service aggregations
+# Benefit: Enables complex analysis without query timeouts
+
+## When NOT to Use Recording Rules
+
+# 1. Simple queries (e.g., direct metric access)
+#    Don't: record: job:up:status | expr: up
+#    Just use: up{job="service"}
+
+# 2. Rarely used metrics
+#    Recording rules consume storage and CPU
+#    Only record metrics used frequently (dashboards, alerts)
+
+# 3. High cardinality aggregations
+#    Recording rules preserve all labels
+#    Avoid recording rules that create millions of series
+
+# 4. Development/debugging
+#    Recording rules are for production optimization
+#    Use ad-hoc queries during development
+
+## Metrics Validation (CRITICAL)
+
+# ALWAYS validate source metrics exist before creating recording rules
+# See: docs/METRICS-VALIDATION-2025-10-12.md
+
+# Validation example:
+# ssh -p 1111 jclee@192.168.50.215 \
+#   "sudo docker exec prometheus-container wget -qO- \
+#   'http://localhost:9090/api/v1/label/__name__/values'" | \
+#   jq -r '.data[]' | grep http_requests_total
+
+# Test query returns data:
+# ssh -p 1111 jclee@192.168.50.215 \
+#   "sudo docker exec prometheus-container wget -qO- \
+#   'http://localhost:9090/api/v1/query?query=http_requests_total'" | \
+#   jq '.data.result'
+
+## Reloading Recording Rules
+
+# After editing this file, reload Prometheus:
+# ssh -p 1111 jclee@192.168.50.215 \
+#   "sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload"
+
+# Verify rules loaded:
+# https://prometheus.jclee.me/rules
+
+# Query recorded metric:
+# https://prometheus.jclee.me/graph?g0.expr=service:http_requests:rate5m
+
+## Storage Impact
+
+# Each recording rule creates new time series
+# Storage formula: series_count * retention_period * bytes_per_sample
+# Example: 1000 series * 30 days * 2 bytes = 60MB
+
+# Monitor recording rule impact:
+# prometheus_rule_evaluations_total
+# prometheus_rule_evaluation_duration_seconds
