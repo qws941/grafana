@@ -30,6 +30,12 @@ services:
     depends_on:
       - prometheus
       - loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -54,6 +60,12 @@ services:
     networks:
       - traefik-public
       - monitoring-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -73,6 +85,12 @@ services:
     networks:
       - traefik-public
       - monitoring-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -105,6 +123,12 @@ services:
     networks:
       - traefik-public
       - monitoring-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9093/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"

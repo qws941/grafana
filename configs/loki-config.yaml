@@ -27,15 +27,15 @@ schema_config:
         prefix: index_
         period: 24h
 
-# Retention (3 days as per CLAUDE.md)
+# Retention (7 days - P0 fix from comprehensive analysis 2025-10-18)
 limits_config:
-  retention_period: 72h
+  retention_period: 168h
   ingestion_rate_mb: 16
   ingestion_burst_size_mb: 32
   per_stream_rate_limit: 8MB
   per_stream_rate_limit_burst: 16MB
   max_query_series: 10000
-  max_query_lookback: 72h
+  max_query_lookback: 168h
   reject_old_samples: true
   reject_old_samples_max_age: 168h
   split_queries_by_interval: 1h
