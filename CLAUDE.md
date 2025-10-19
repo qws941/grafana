@@ -4,9 +4,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive Grafana Monitoring Stack deployed **remotely on Synology NAS** (192.168.50.215:1111), providing full observability for infrastructure, applications, and services. The stack runs entirely on the NAS.
+Grafana Monitoring Stack on **Synology NAS** (192.168.50.215:1111). Local `/home/jclee/app/grafana` is **NFS-mounted** from `192.168.50.215:/volume1/grafana`.
 
-**Critical Architecture**: This stack is **NOT local**. All services run on Synology NAS. The local directory `/home/jclee/app/grafana` is **NFS-mounted** directly from Synology NAS (`192.168.50.215:/volume1/grafana`), providing automatic real-time synchronization at the filesystem level.
+**Critical**: NOT local. All services run on NAS. Changes via NFS are instant.
+
+## ⚡ Quick Reference
+
+### Most Used Commands
+
+```bash
+# Verify NFS mount
+mount | grep grafana
+
+# Validate metrics (MANDATORY before dashboards)
+./scripts/validate-metrics.sh --list | grep <pattern>
+
+# Reload Prometheus (hot reload)
+ssh -p 1111 jclee@192.168.50.215 \
+  "sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload"
+
+# Restart Grafana
+ssh -p 1111 jclee@192.168.50.215 "sudo docker restart grafana-container"
+
+# Check container health
+ssh -p 1111 jclee@192.168.50.215 "sudo docker ps | grep -E 'grafana|prometheus|loki'"
+
+# Run health check
+./scripts/health-check.sh
+```
+
+### Access Points
+
+- Grafana: https://grafana.jclee.me (admin / from .env)
+- Prometheus: https://prometheus.jclee.me
+- Loki: https://loki.jclee.me
+- AlertManager: https://alertmanager.jclee.me
+- SSH: `ssh -p 1111 jclee@192.168.50.215`
+
+### Critical Rules
+
+1. **Always validate metrics before creating dashboards** (2025-10-13 incident: P95 doesn't exist, only P50/P90/P99)
+2. **Use full container names** in configs (e.g., `prometheus-container:9090`)
+3. **Dashboard methodology**: REDS (applications), USE (infrastructure)
+4. **Never create dashboards manually in UI** (auto-provisioned every 10s, will be overwritten)
+5. **Grafana auto-provisions dashboards every 10 seconds** from `configs/provisioning/dashboards/*.json`
 
 ## Deployment Architecture
 
@@ -34,116 +75,35 @@ NFS Mount Details:                        ├── prometheus/
                                      - cadvisor-container
 ```
 
-## Essential Commands
+## Essential Operations
 
-### NFS Mount Management
-
-The project directory is **NFS-mounted** from Synology NAS, providing instant synchronization:
+### NFS Mount Troubleshooting
 
 ```bash
-# Verify NFS mount
-mount | grep grafana
-# Output: 192.168.50.215:/volume1/grafana on /home/jclee/app/grafana type nfs
-
-# Check NFS mount status
-df -h | grep grafana
-
-# Remount if needed (rare)
+# Remount if connection issues
 sudo umount /home/jclee/app/grafana
 sudo mount -a
 
-# View NFS mount options
+# Verify mount options
 cat /etc/fstab | grep grafana
+# Should show: 192.168.50.215:/volume1/grafana /home/jclee/app/grafana nfs rw,noatime,hard 0 0
 ```
 
-**Important**: There is **NO sync service**. All file changes are instantly reflected on Synology NAS via NFS.
+### Service Reload Details
 
-### Configuration Changes Workflow
+**Prometheus** (hot reload, no downtime):
+- Command: `wget --post-data='' -qO- http://localhost:9090/-/reload`
+- Reloads: `prometheus.yml`, `alert-rules.yml`, `recording-rules.yml`
+- Verification: Check https://prometheus.jclee.me/config
 
-**Standard workflow** (NFS handles everything automatically):
+**Grafana** (requires restart):
+- Dashboards: Auto-provisioned every 10s (no restart needed for dashboard changes)
+- Config changes: Restart required
+- Verification: Check https://grafana.jclee.me/api/health
 
-```bash
-# 1. Edit configs locally (instantly synced via NFS)
-vim configs/prometheus.yml
-vim configs/provisioning/dashboards/n8n-workflow-automation-reds.json
-
-# 2. Changes are IMMEDIATELY on Synology NAS (no waiting)
-
-# 3. Reload remote service
-# Prometheus supports hot reload (no downtime)
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload"
-
-# Grafana/Loki require restart
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart grafana-container"
-```
-
-**Important**: Grafana auto-provisions dashboards every 10 seconds from `configs/provisioning/dashboards/*.json`. Changes via NFS are instant, so total latency is just the Grafana scan interval (10 seconds).
-
-### Remote Container Management
-
-```bash
-# SSH to Synology NAS
-ssh -p 1111 jclee@192.168.50.215
-
-# Check all monitoring containers
-sudo docker ps | grep -E 'grafana|prometheus|loki|promtail'
-
-# View logs
-sudo docker logs -f grafana-container
-sudo docker logs prometheus-container --tail 50
-
-# Check container health
-sudo docker inspect grafana-container | jq '.[0].State.Health'
-
-# Execute commands inside containers
-sudo docker exec prometheus-container wget -qO- http://localhost:9090/-/healthy
-```
-
-### Prometheus Metrics Validation
-
-**CRITICAL**: Always validate metrics exist before using in dashboards or recording rules.
-
-```bash
-# List all available metrics
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec prometheus-container wget -qO- \
-  'http://localhost:9090/api/v1/label/__name__/values'" | \
-  jq -r '.data[]' | grep n8n
-
-# Query specific metric (test if it returns data)
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec prometheus-container wget -qO- \
-  'http://localhost:9090/api/v1/query?query=n8n_active_workflow_count'" | \
-  jq '.data.result'
-
-# Check Prometheus target status
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec prometheus-container wget -qO- \
-  http://localhost:9090/api/v1/targets" | \
-  jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
-```
-
-**Why Critical**: 2025-10-13 incident - Dashboard used `n8n_nodejs_eventloop_lag_p95_seconds` which doesn't exist. n8n only provides P50, P90, P99. Always validate first.
-
-### Grafana API Operations
-
-```bash
-# Use helper script (requires .env.credentials)
-./scripts/grafana-api.sh datasources
-./scripts/grafana-api.sh dashboards
-
-# Direct API call (inside Grafana container)
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec grafana-container curl -s -u admin:bingogo1 \
-  http://localhost:3000/api/datasources" | jq '.'
-
-# Verify dashboard loaded
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec grafana-container curl -s -u admin:bingogo1 \
-  'http://localhost:3000/api/dashboards/uid/n8n-workflow-automation-reds'" | \
-  jq '.dashboard.title'
-```
+**Loki** (requires restart):
+- Config: `loki-config.yaml`
+- Verification: Check https://loki.jclee.me/ready
 
 ## Architecture Deep Dive
 
@@ -710,124 +670,16 @@ See `docs/IMPROVEMENTS-2025-10-14.md` for full details.
 - `docs/METRICS-VALIDATION-2025-10-12.md` - Metrics validation methodology
 - `docs/N8N-LOG-INVESTIGATION-2025-10-12.md` - Synology logging constraints
 - `docs/DASHBOARD-MODERNIZATION-2025-10-12.md` - Dashboard modernization standards
-- `docs/REALTIME_SYNC.md` - Sync architecture details
-## Infrastructure Integration
+- `docs/DEPRECATED-REALTIME_SYNC.md` - Deprecated sync architecture (replaced by NFS)
 
-### Observability Stack (Synology NAS)
+## Summary
 
-All projects integrate with centralized monitoring on grafana.jclee.me:
+**Architecture**: NFS-mounted from Synology NAS (instant sync, no sync service)
+**Critical Operations**: Validate metrics → Edit configs → Reload services
+**Methodologies**: REDS (applications), USE (infrastructure)
+**Validation**: `./scripts/validate-metrics.sh` (prevents "No Data" panels)
+**Documentation**: See `resume/` for comprehensive guides (2400+ lines total)
 
-```yaml
-grafana: https://grafana.jclee.me
-  dashboards: Project-specific dashboards for metrics visualization
-  loki: Centralized logging (all docker logs → promtail → Loki)
-  prometheus: Metrics collection and alerting
+For global infrastructure integration and Constitutional Framework, see `~/.claude/CLAUDE.md`.
 
-n8n: https://n8n.jclee.me
-  workflows: Automated CI/CD, notifications, integrations
-  webhooks: Event-driven automation triggers
 
-slack: Team notifications
-  channels: #alerts, #deployments, #monitoring
-  integration: Via n8n workflows and direct API
-```
-
-**Health Checks**:
-```bash
-# Verify infrastructure connectivity
-curl -sf https://grafana.jclee.me/api/health
-curl -sf https://n8n.jclee.me/healthz
-```
-
-### Common Libraries (v1.0.0)
-
-Centralized bash libraries eliminate code duplication:
-
-```bash
-# Load common libraries in scripts
-source "${HOME}/.claude/lib/bash/colors.sh"    # Color definitions, output functions
-source "${HOME}/.claude/lib/bash/logging.sh"   # Loki logging functions
-source "${HOME}/.claude/lib/bash/ids.sh"       # Task ID generation
-source "${HOME}/.claude/lib/bash/api-clients.sh" # Grafana, n8n, Slack APIs
-source "${HOME}/.claude/lib/bash/errors.sh"    # Error handling, retries
-
-# Example usage
-TASK_ID=$(generate_task_id "deploy")
-log_info "Starting deployment: $TASK_ID"
-log_to_loki "my-project" "Deployment started" "INFO"
-```
-
-**Key Functions**:
-- `log_to_loki(job, message, level)` - Send logs to Grafana Loki
-- `generate_task_id(prefix)` - Create UUID-based task IDs
-- `grafana_query(endpoint, method, data)` - Query Grafana API
-- `n8n_webhook(webhook_id, data)` - Trigger n8n workflows
-- `slack_message(channel, text)` - Send Slack notifications
-- `retry_with_backoff(attempts, delay, max_delay, cmd)` - Retry with exponential backoff
-- `require_command(cmd, package)` - Check dependencies
-- `require_env(var)` - Validate environment variables
-
-**Documentation**: `~/.claude/lib/README.md`
-
-### Deployment Standards
-
-All projects follow Constitutional Framework v11.11:
-
-```yaml
-mandatory_structure:
-  - /resume/ (architecture, api, deployment, troubleshooting)
-  - /demo/ (screenshots/, videos/, examples/)
-  - docker-compose.yml (with health checks and Traefik labels)
-  - .env.example (template for required env vars)
-
-observability_requirements:
-  - Metrics endpoint: /{service}/metrics (Prometheus format)
-  - Health endpoint: /{service}/health (JSON response)
-  - Docker logs: Automatically sent to Loki via promtail
-
-prohibited:
-  - Local Grafana/Prometheus/Loki instances (ports 3000/9090/3100)
-  - Backup files (*.backup, *.bak, *.old) - Use git only
-  - Root directory clutter - Use structured subdirectories
-```
-
-### Testing Requirements
-
-```bash
-# Pre-deployment checklist
-npm test                    # All unit tests must pass
-npm run test:coverage       # Coverage ≥ 80%
-npm run lint                # No linting errors
-docker-compose up -d        # Deploy
-sleep 5
-curl http://localhost:PORT/health  # Verify health endpoint
-
-# Grafana verification (mandatory)
-# 1. Check service is UP in Prometheus
-# 2. Verify error_rate == 0
-# 3. Confirm logs flowing to Loki
-```
-
-### Environment Variables
-
-Required environment variables for infrastructure integration:
-
-```bash
-# Grafana/Loki/Prometheus
-LOKI_URL=https://grafana.jclee.me
-GRAFANA_URL=https://grafana.jclee.me
-PROMETHEUS_URL=https://prometheus.jclee.me
-
-# n8n
-N8N_URL=https://n8n.jclee.me
-N8N_API_KEY=<from ~/.env>
-
-# Slack
-SLACK_BOT_TOKEN=<from ~/.env>
-SLACK_WEBHOOK_URL=<from ~/.env>
-
-# Service-specific
-SERVICE_NAME=<project-name>
-LOG_LEVEL=info
-TZ=Asia/Seoul
-```
