@@ -17,80 +17,121 @@ alerting:
         - targets:
             - 'alertmanager-container:9093'
 
-# Scrape configurations
+# ============================================================================
+# Scrape Configurations - Organized by Context
+# ============================================================================
 scrape_configs:
-  # Prometheus self-monitoring
+  # ==========================================================================
+  # 1. CORE MONITORING STACK (Self-Monitoring)
+  # ==========================================================================
+  # These services form the monitoring infrastructure itself
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['prometheus-container:9090']
+        labels:
+          context: 'monitoring-stack'
 
-  # Grafana
   - job_name: 'grafana'
     static_configs:
       - targets: ['grafana-container:3000']
+        labels:
+          context: 'monitoring-stack'
 
-  # Loki
   - job_name: 'loki'
     static_configs:
       - targets: ['loki-container:3100']
+        labels:
+          context: 'monitoring-stack'
 
-  # AlertManager
   - job_name: 'alertmanager'
     static_configs:
       - targets: ['alertmanager-container:9093']
+        labels:
+          context: 'monitoring-stack'
 
-  # Node Exporter (system metrics)
+  # ==========================================================================
+  # 2. PRODUCTION INFRASTRUCTURE (Synology NAS - 192.168.50.215)
+  # ==========================================================================
+  # System-level metrics from production environment
+
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter-container:9100']
         labels:
           host: 'synology'
           environment: 'production'
+          context: 'infrastructure'
 
-  # cAdvisor (container metrics)
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor-container:8080']
         labels:
           host: 'synology'
           environment: 'production'
+          context: 'infrastructure'
 
-  # n8n (workflow automation)
+  # ==========================================================================
+  # 3. PRODUCTION APPLICATIONS
+  # ==========================================================================
+  # Application-level metrics from production services
+
   - job_name: 'n8n'
     static_configs:
       - targets: ['n8n-container:5678']
+        labels:
+          environment: 'production'
+          context: 'application'
     metrics_path: '/metrics'
 
-  # Local exporters (from development machine 192.168.50.100)
+  - job_name: 'pushgateway'
+    honor_labels: true
+    static_configs:
+      - targets: ['192.168.50.100:9091']
+        labels:
+          environment: 'production'
+          source: 'guardian-rl'
+          context: 'application'
+
+  # ==========================================================================
+  # 4. DEVELOPMENT ENVIRONMENT (Local Machine - 192.168.50.100)
+  # ==========================================================================
+  # Metrics from development machine for testing and local monitoring
+
+  # System metrics from development machine
   - job_name: 'local-node-exporter'
     static_configs:
       - targets: ['192.168.50.100:9101']
         labels:
           host: 'jclee-dev'
           environment: 'development'
+          context: 'dev-infrastructure'
     metric_relabel_configs:
       - source_labels: [__name__]
         regex: 'node_.*'
         action: keep
 
+  # Container metrics from development machine
   - job_name: 'local-cadvisor'
     static_configs:
       - targets: ['192.168.50.100:8081']
         labels:
           host: 'jclee-dev'
           environment: 'development'
+          context: 'dev-infrastructure'
     metric_relabel_configs:
       - source_labels: [__name__]
         regex: 'container_.*'
         action: keep
 
-  # AI Agent metrics (MCP servers)
+  # AI/MCP server metrics
   - job_name: 'ai-agents'
     static_configs:
       - targets: ['192.168.50.100:9091']
         labels:
           host: 'jclee-dev'
           environment: 'development'
+          context: 'dev-application'
     metrics_path: '/metrics'
     scrape_interval: 15s
     scrape_timeout: 10s
@@ -99,7 +140,7 @@ scrape_configs:
         regex: 'mcp_ai_.*'
         action: keep
 
-  # HYCU Automation metrics
+  # HYCU automation metrics
   - job_name: 'hycu-automation'
     static_configs:
       - targets: ['192.168.50.100:9092']
@@ -108,6 +149,7 @@ scrape_configs:
           type: 'automation'
           host: 'jclee-dev'
           environment: 'development'
+          context: 'dev-application'
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 10s
