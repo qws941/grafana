@@ -9,6 +9,7 @@ envs/
 data/
 logs/
 prometheus-data/
+backups/
 
 # Temporary files
 *.tmp
