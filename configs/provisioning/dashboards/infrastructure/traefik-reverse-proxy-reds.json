@@ -25,14 +25,14 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "expr": "sum(rate(traefik_entrypoint_requests_total[5m]))",
+          "expr": "sum(traefik:entrypoint:requests:rate5m)",
           "refId": "A",
-          "legendFormat": "req/s"
+          "legendFormat": "req/min"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "rpm",
           "decimals": 2,
           "thresholds": {
             "mode": "absolute",
@@ -171,14 +171,14 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_total[5m]))",
+          "expr": "sum by (entrypoint) (traefik:entrypoint:requests:rate5m)",
           "refId": "A",
           "legendFormat": "{{entrypoint}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "rpm",
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
@@ -468,12 +468,12 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_bytes_total[5m]))",
+          "expr": "sum by (entrypoint) (traefik:entrypoint:bytes_in:rate5m)",
           "refId": "A",
           "legendFormat": "{{entrypoint}} IN"
         },
         {
-          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_responses_bytes_total[5m])) * -1",
+          "expr": "sum by (entrypoint) (traefik:entrypoint:bytes_out:rate5m) * -1",
           "refId": "B",
           "legendFormat": "{{entrypoint}} OUT"
         }
@@ -505,19 +505,19 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_tls_total[5m]))",
+          "expr": "sum by (entrypoint) (traefik:entrypoint:tls_requests:rate5m)",
           "refId": "A",
           "legendFormat": "{{entrypoint}} TLS"
         },
         {
-          "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_total[5m])) - sum by (entrypoint) (rate(traefik_entrypoint_requests_tls_total[5m]))",
+          "expr": "sum by (entrypoint) (traefik:entrypoint:requests:rate5m) - sum by (entrypoint) (traefik:entrypoint:tls_requests:rate5m)",
           "refId": "B",
           "legendFormat": "{{entrypoint}} Non-TLS"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "rpm",
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",

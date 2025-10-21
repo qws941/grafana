@@ -1027,5 +1027,6 @@
   "title": "Applications - HYCU Automation (REDS)",
   "uid": "hycu-automation-reds",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "refresh": "30s"
 }
