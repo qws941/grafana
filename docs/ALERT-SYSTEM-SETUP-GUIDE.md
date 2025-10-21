@@ -90,10 +90,7 @@ The n8n workflow needs to be imported manually via n8n UI.
    - Click **"+"** → **"Import from File"**
    - Select: `/home/jclee/app/grafana/configs/n8n-workflows/alertmanager-webhook.json`
 
-   Or copy from Synology NAS:
-   ```bash
-   ssh -p 1111 jclee@192.168.50.215 "cat /tmp/alertmanager-webhook.json"
-   ```
+   Note: File is accessible via NFS mount at `/home/jclee/app/grafana/configs/n8n-workflows/`
 
 3. **Activate Workflow**:
    - Open the imported workflow
@@ -125,7 +122,9 @@ sudo docker exec n8n-container n8n import:workflow --activate
 ### 1. Check Workflow is Active
 
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "curl -s 'http://localhost:5678/api/v1/workflows' | jq -r '.data[] | select(.name | contains(\"AlertManager\")) | {id: .id, name: .name, active: .active}'"
+docker context use synology
+docker exec n8n-container curl -s 'http://localhost:5678/api/v1/workflows' | \
+  jq -r '.data[] | select(.name | contains("AlertManager")) | {id: .id, name: .name, active: .active}'
 ```
 
 Expected output:
@@ -140,7 +139,8 @@ Expected output:
 ### 2. Check AlertManager Configuration
 
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker exec alertmanager-container wget -qO- http://localhost:9093/api/v2/status 2>/dev/null | jq -r '.config.receivers[] | select(.name == \"web.hook\")'"
+docker context use synology
+docker exec alertmanager-container wget -qO- http://localhost:9093/api/v2/status 2>/dev/null | jq -r '.config.receivers[] | select(.name == "web.hook")'
 ```
 
 Should show:
@@ -160,7 +160,8 @@ Should show:
 ### 3. View Active Alerts
 
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.state == \"firing\") | {alert: .labels.alertname, severity: .labels.severity, summary: .annotations.summary}'"
+docker context use synology
+docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.state == "firing") | {alert: .labels.alertname, severity: .labels.severity, summary: .annotations.summary}'
 ```
 
 ---
@@ -172,11 +173,8 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO
 Create a temporary alert rule that will immediately fire:
 
 ```bash
-# SSH to Synology
-ssh -p 1111 jclee@192.168.50.215
-
-# Create test alert rule
-cat >> /volume1/grafana/configs/test-alert.yml <<'EOF'
+# Create test alert rule using NFS mount
+cat >> /home/jclee/app/grafana/configs/test-alert.yml <<'EOF'
 groups:
   - name: test_alerts
     interval: 10s
@@ -193,36 +191,40 @@ groups:
           grafana_url: "https://grafana.jclee.me"
 EOF
 
-# Reload Prometheus with test rule
-sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload
+# Reload Prometheus using Docker context
+docker context use synology
+docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload
 ```
 
 **Check alert fired**:
 ```bash
 # Wait 30 seconds, then check
 sleep 30
-ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.labels.alertname == \"TestAlert\")'"
+docker context use synology
+docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.labels.alertname == "TestAlert")'
 ```
 
 **Check n8n received webhook**:
 ```bash
 # Check n8n workflow executions
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-container --tail 50 | grep -i 'test alert'"
+docker context use synology
+docker logs n8n-container --tail 50 | grep -i 'test alert'
 ```
 
 **Clean up test alert**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo rm /volume1/grafana/configs/test-alert.yml && sudo docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload"
+# Use NFS mount for file deletion, Docker context for container operations
+rm /home/jclee/app/grafana/configs/test-alert.yml
+docker context use synology
+docker exec prometheus-container wget --post-data='' -qO- http://localhost:9090/-/reload
 ```
 
 ### Method 2: Use AlertManager amtool
 
 ```bash
-# SSH to Synology
-ssh -p 1111 jclee@192.168.50.215
-
-# Send test alert via amtool
-sudo docker exec alertmanager-container amtool alert add \
+# Send test alert using Docker context
+docker context use synology
+docker exec alertmanager-container amtool alert add \
   --annotation=summary="Test Alert from amtool" \
   --annotation=description="This is a test alert sent directly to AlertManager" \
   --label=alertname=TestAmtoolAlert \
@@ -237,7 +239,8 @@ If any alerts are currently firing, they will automatically be sent to n8n:
 
 ```bash
 # View firing alerts
-ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.state == \"firing\")'"
+docker context use synology
+docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.state == "firing")'
 ```
 
 ---
@@ -424,34 +427,40 @@ Integrate with PagerDuty/Opsgenie:
 
 1. **Check alert rule syntax**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container promtool check rules /etc/prometheus-configs/alert-rules.yml"
+   docker context use synology
+   docker exec prometheus-container promtool check rules /etc/prometheus-configs/alert-rules.yml
    ```
 
 2. **Check Prometheus evaluation**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/rules' 2>/dev/null | jq -r '.data.groups[] | select(.name == \"YOUR_GROUP\")'"
+   docker context use synology
+   docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/rules' 2>/dev/null | jq -r '.data.groups[] | select(.name == "YOUR_GROUP")'
    ```
 
 3. **Check alert state**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.labels.alertname == \"YOUR_ALERT\")'"
+   docker context use synology
+   docker exec prometheus-container wget -qO- 'http://localhost:9090/api/v1/alerts' 2>/dev/null | jq -r '.data.alerts[] | select(.labels.alertname == "YOUR_ALERT")'
    ```
 
 ### AlertManager Not Sending Webhooks
 
 1. **Check AlertManager config**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec alertmanager-container amtool config show"
+   docker context use synology
+   docker exec alertmanager-container amtool config show
    ```
 
 2. **Check webhook connectivity**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec alertmanager-container wget -qO- http://n8n-container:5678/webhook/alerts 2>&1"
+   docker context use synology
+   docker exec alertmanager-container wget -qO- http://n8n-container:5678/webhook/alerts 2>&1
    ```
 
 3. **Check AlertManager logs**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs alertmanager-container --tail 100 | grep -i webhook"
+   docker context use synology
+   docker logs alertmanager-container --tail 100 | grep -i webhook
    ```
 
 ### n8n Workflow Not Executing
@@ -466,29 +475,38 @@ Integrate with PagerDuty/Opsgenie:
 
 3. **Check n8n logs**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-container --tail 100"
+   docker context use synology
+   docker logs n8n-container --tail 100
    ```
 
 4. **Test webhook manually**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "curl -X POST 'http://n8n-container:5678/webhook/alerts' -H 'Content-Type: application/json' -d '{\"alerts\": [{\"status\": \"firing\", \"labels\": {\"alertname\": \"TestAlert\", \"severity\": \"warning\"}, \"annotations\": {\"summary\": \"Test\", \"description\": \"Manual test\"}}]}'"
+   docker context use synology
+   docker exec n8n-container curl -X POST 'http://localhost:5678/webhook/alerts' \
+     -H 'Content-Type: application/json' \
+     -d '{"alerts": [{"status": "firing", "labels": {"alertname": "TestAlert", "severity": "warning"}, "annotations": {"summary": "Test", "description": "Manual test"}}]}'
    ```
 
 ### Loki Not Receiving Alert Logs
 
 1. **Check Loki connectivity from n8n**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec n8n-container wget -qO- http://loki-container:3100/ready"
+   docker context use synology
+   docker exec n8n-container wget -qO- http://loki-container:3100/ready
    ```
 
 2. **Check Loki ingestion logs**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs loki-container --tail 100 | grep -E 'POST /loki/api/v1/push'"
+   docker context use synology
+   docker logs loki-container --tail 100 | grep -E 'POST /loki/api/v1/push'
    ```
 
 3. **Query Loki for alert logs**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker exec grafana-container curl -s -u 'admin:bingogo1' 'http://localhost:3000/api/datasources/proxy/uid/loki/loki/api/v1/query_range?query=%7Bjob%3D%22alertmanager%22%7D&start=$(date -u -d '1 hour ago' +%s)000000000&end=$(date -u +%s)000000000' | jq -r '.data.result[].values[] | .[1]'"
+   docker context use synology
+   docker exec grafana-container curl -s -u 'admin:bingogo1' \
+     'http://localhost:3000/api/datasources/proxy/uid/loki/loki/api/v1/query_range?query=%7Bjob%3D%22alertmanager%22%7D&start=$(date -u -d "1 hour ago" +%s)000000000&end=$(date -u +%s)000000000' | \
+     jq -r '.data.result[].values[] | .[1]'
    ```
 
 ---

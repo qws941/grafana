@@ -444,7 +444,8 @@ chmod +x scripts/check-n8n-stack.sh
 
 **Check logs**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-container --tail 100"
+docker context use synology
+docker logs n8n-container --tail 100
 ```
 
 **Common causes**:
@@ -452,34 +453,34 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-container --tail 100"
 1. **PostgreSQL connection failure**:
    ```bash
    # Check PostgreSQL container is running
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker ps | grep postgres"
+   docker context use synology
+   docker ps | grep postgres
 
    # Check PostgreSQL logs
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-postgres-container"
+   docker logs n8n-postgres-container
 
    # Test PostgreSQL connection
-   ssh -p 1111 jclee@192.168.50.215 \
-     "sudo docker exec n8n-postgres-container pg_isready -U n8n"
+   docker exec n8n-postgres-container pg_isready -U n8n
    ```
 
 2. **Redis connection failure**:
    ```bash
    # Check Redis container is running
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker ps | grep redis"
+   docker context use synology
+   docker ps | grep redis
 
    # Test Redis connection
-   ssh -p 1111 jclee@192.168.50.215 \
-     "sudo docker exec n8n-redis-container redis-cli ping"
+   docker exec n8n-redis-container redis-cli ping
    ```
 
 3. **Environment variable errors**:
    ```bash
    # Check environment variables in container
-   ssh -p 1111 jclee@192.168.50.215 \
-     "sudo docker exec n8n-container env | grep N8N"
+   docker context use synology
+   docker exec n8n-container env | grep N8N
 
-   # Verify .env file on NAS
-   ssh -p 1111 jclee@192.168.50.215 "cat /volume1/grafana/.env | grep N8N"
+   # Verify .env file using NFS mount
+   cat /home/jclee/app/grafana/.env | grep N8N
    ```
 
 4. **Port conflict**:
@@ -495,8 +496,8 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker logs n8n-container --tail 100"
 **Verify metrics endpoint is working**:
 ```bash
 # 1. Check n8n metrics endpoint inside container
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec n8n-container curl http://localhost:5678/metrics"
+docker context use synology
+docker exec n8n-container curl http://localhost:5678/metrics
 ```
 
 **Expected**: Prometheus-format metrics output
@@ -524,15 +525,15 @@ curl -s https://prometheus.jclee.me/api/v1/targets | \
 **Check Promtail status**:
 ```bash
 # 1. Check Promtail container logs
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker logs promtail-container --tail 100"
+docker context use synology
+docker logs promtail-container --tail 100
 ```
 
 **Verify Docker socket access**:
 ```bash
 # 2. Check Promtail can access Docker socket
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec promtail-container ls -la /var/run/docker.sock"
+docker context use synology
+docker exec promtail-container ls -la /var/run/docker.sock
 ```
 
 **Expected**: Socket file exists with proper permissions
@@ -540,8 +541,8 @@ ssh -p 1111 jclee@192.168.50.215 \
 **Test Loki connection**:
 ```bash
 # 3. Verify Promtail can reach Loki
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker exec promtail-container wget -O- http://loki-container:3100/ready"
+docker context use synology
+docker exec promtail-container wget -O- http://loki-container:3100/ready
 ```
 
 **Expected**: `{"status":"ready"}`

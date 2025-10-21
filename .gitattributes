@@ -1,0 +1,220 @@
+################################################################################
+# GRAFANA MONITORING STACK - GIT ATTRIBUTES
+# Based on Constitutional Framework v11.11 and CLAUDE.md standards
+# Project: Grafana Monitoring Stack (Synology NAS Deployment)
+################################################################################
+
+# ==============================================================================
+# AUTO-DETECT TEXT FILES
+# ==============================================================================
+* text=auto eol=lf
+
+# ==============================================================================
+# SOURCE CODE - Normalize line endings to LF
+# ==============================================================================
+# Shell scripts (critical for Linux/Synology execution)
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Python
+*.py text eol=lf diff=python
+*.pyx text eol=lf diff=python
+*.pyi text eol=lf diff=python
+
+# JavaScript/TypeScript
+*.js text eol=lf diff=javascript
+*.jsx text eol=lf diff=javascript
+*.ts text eol=lf diff=typescript
+*.tsx text eol=lf diff=typescript
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# ==============================================================================
+# CONFIGURATION FILES - LF line endings
+# ==============================================================================
+# YAML (Prometheus, Grafana, Docker Compose)
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# JSON (Grafana Dashboards, Package configs)
+*.json text eol=lf
+*.jsonl text eol=lf
+*.json5 text eol=lf
+
+# TOML
+*.toml text eol=lf
+
+# INI
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.config text eol=lf
+
+# XML
+*.xml text eol=lf
+*.plist text eol=lf
+
+# Environment files
+.env* text eol=lf
+.envrc text eol=lf
+
+# ==============================================================================
+# DOCKER FILES - LF line endings (Linux containers)
+# ==============================================================================
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf
+.dockerignore text eol=lf
+
+# ==============================================================================
+# DOCUMENTATION - LF line endings
+# ==============================================================================
+*.md text eol=lf diff=markdown
+*.markdown text eol=lf diff=markdown
+*.mdx text eol=lf diff=markdown
+*.rst text eol=lf
+*.txt text eol=lf
+*.adoc text eol=lf
+*.asciidoc text eol=lf
+
+# License files
+LICENSE* text eol=lf
+COPYING* text eol=lf
+
+# Changelog
+CHANGELOG* text eol=lf
+HISTORY* text eol=lf
+
+# README files
+README* text eol=lf
+
+# ==============================================================================
+# WEB ASSETS - LF line endings
+# ==============================================================================
+*.html text eol=lf diff=html
+*.htm text eol=lf diff=html
+*.css text eol=lf diff=css
+*.scss text eol=lf diff=css
+*.sass text eol=lf diff=css
+*.less text eol=lf diff=css
+
+# ==============================================================================
+# TEMPLATES - LF line endings
+# ==============================================================================
+*.tmpl text eol=lf
+*.template text eol=lf
+*.tpl text eol=lf
+
+# ==============================================================================
+# DATA FILES
+# ==============================================================================
+# CSV
+*.csv text eol=lf
+
+# SQL
+*.sql text eol=lf
+
+# GraphQL
+*.graphql text eol=lf
+*.gql text eol=lf
+
+# ==============================================================================
+# BINARY FILES - No text conversion
+# ==============================================================================
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.webp binary
+*.bmp binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.rar binary
+
+# Executables
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Databases
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Other binary
+*.pdf binary
+*.mov binary
+*.mp4 binary
+*.mp3 binary
+*.flv binary
+
+# ==============================================================================
+# SPECIAL HANDLING FOR GRAFANA DASHBOARDS
+# ==============================================================================
+# Grafana dashboard JSONs - preserve formatting for human readability
+configs/provisioning/dashboards/*.json text eol=lf merge=union linguist-language=JSON
+
+# ==============================================================================
+# SPECIAL HANDLING FOR PROMETHEUS/LOKI CONFIGS
+# ==============================================================================
+# Preserve formatting for critical monitoring configs
+configs/prometheus.yml text eol=lf merge=union
+configs/loki-config.yml text eol=lf merge=union
+configs/promtail-config.yml text eol=lf merge=union
+configs/alert-rules.yml text eol=lf merge=union
+configs/recording-rules.yml text eol=lf merge=union
+
+# ==============================================================================
+# DIFF STRATEGIES
+# ==============================================================================
+# Lock files - binary diff to avoid conflicts
+package-lock.json binary
+yarn.lock binary
+pnpm-lock.yaml binary
+Cargo.lock binary
+Pipfile.lock binary
+
+# ==============================================================================
+# EXPORT-IGNORE (Not included in git archive)
+# ==============================================================================
+.gitattributes export-ignore
+.gitignore export-ignore
+.github/ export-ignore
+.vscode/ export-ignore
+.idea/ export-ignore
+tests/ export-ignore
+*.test.* export-ignore
+*.spec.* export-ignore
+
+# ==============================================================================
+# LINGUIST OVERRIDES (GitHub language detection)
+# ==============================================================================
+# Documentation shouldn't count as code
+docs/** linguist-documentation
+*.md linguist-documentation
+*.markdown linguist-documentation
+
+# Vendored code
+vendor/** linguist-vendored
+node_modules/** linguist-vendored
+
+# Generated files
+dist/** linguist-generated
+build/** linguist-generated

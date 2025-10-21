@@ -186,7 +186,8 @@ curl -X POST -H "Authorization: Bearer ${GRAFANA_API_KEY}" \
 
 ```bash
 # Check if Pushgateway exists on NAS
-ssh -p 1111 jclee@192.168.50.215 "sudo docker ps | grep pushgateway"
+docker context use synology
+docker ps | grep pushgateway
 
 # If not, deploy Pushgateway
 ssh -p 1111 jclee@192.168.50.215 <<'EOF'
