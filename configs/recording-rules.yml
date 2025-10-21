@@ -217,3 +217,84 @@ groups:
 
       - record: hycu:automation:health_score
         expr: hycu_session_valid * (1 - (hycu_consecutive_failures / 10))
+
+  # Traefik Entrypoint recording rules (added 2025-10-21)
+  # Provides entrypoint-level metrics (complementing existing router-level rules)
+  - name: traefik_entrypoint_recording_rules
+    interval: 30s
+    rules:
+      # Entrypoint request rate
+      - record: traefik:entrypoint:requests:rate5m
+        expr: rate(traefik_entrypoint_requests_total[5m]) * 60
+
+      # Entrypoint bandwidth
+      - record: traefik:entrypoint:bytes_in:rate5m
+        expr: rate(traefik_entrypoint_requests_bytes_total[5m])
+
+      - record: traefik:entrypoint:bytes_out:rate5m
+        expr: rate(traefik_entrypoint_responses_bytes_total[5m])
+
+      # TLS requests
+      - record: traefik:entrypoint:tls_requests:rate5m
+        expr: rate(traefik_entrypoint_requests_tls_total[5m]) * 60
+
+      # Entrypoint latency percentiles
+      - record: traefik:entrypoint:duration:p50
+        expr: histogram_quantile(0.50, rate(traefik_entrypoint_request_duration_seconds_bucket[5m]))
+
+      - record: traefik:entrypoint:duration:p95
+        expr: histogram_quantile(0.95, rate(traefik_entrypoint_request_duration_seconds_bucket[5m]))
+
+      - record: traefik:entrypoint:duration:p99
+        expr: histogram_quantile(0.99, rate(traefik_entrypoint_request_duration_seconds_bucket[5m]))
+
+  # Prometheus Performance recording rules (added 2025-10-21)
+  # Monitors Prometheus query engine and API performance
+  - name: prometheus_performance_recording_rules
+    interval: 30s
+    rules:
+      # Query engine performance
+      - record: prometheus:query_duration:p50
+        expr: histogram_quantile(0.50, rate(prometheus_engine_query_duration_seconds_bucket[5m]))
+
+      - record: prometheus:query_duration:p95
+        expr: histogram_quantile(0.95, rate(prometheus_engine_query_duration_seconds_bucket[5m]))
+
+      - record: prometheus:query_duration:p99
+        expr: histogram_quantile(0.99, rate(prometheus_engine_query_duration_seconds_bucket[5m]))
+
+      # HTTP API performance
+      - record: prometheus:http_request_duration:p50
+        expr: histogram_quantile(0.50, rate(prometheus_http_request_duration_seconds_bucket{handler="/api/v1/query"}[5m]))
+
+      - record: prometheus:http_request_duration:p95
+        expr: histogram_quantile(0.95, rate(prometheus_http_request_duration_seconds_bucket{handler="/api/v1/query"}[5m]))
+
+      - record: prometheus:http_request_duration:p99
+        expr: histogram_quantile(0.99, rate(prometheus_http_request_duration_seconds_bucket{handler="/api/v1/query"}[5m]))
+
+  # Enhanced Container recording rules (added 2025-10-21)
+  # Additional container metrics beyond basic CPU/memory/network
+  - name: container_enhanced_recording_rules
+    interval: 30s
+    rules:
+      # Memory limit utilization percentage
+      - record: container:memory_limit:ratio
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100
+
+      # CPU throttling rate (indicates resource constraints)
+      - record: container:cpu_throttled:rate5m
+        expr: rate(container_cpu_cfs_throttled_seconds_total{name!=""}[5m])
+
+  # Grafana Monitoring recording rules (added 2025-10-21)
+  # Self-monitoring of Grafana performance
+  - name: grafana_monitoring_recording_rules
+    interval: 30s
+    rules:
+      # Access evaluation rate
+      - record: grafana:access_evaluation:rate5m
+        expr: rate(grafana_access_evaluation_count[5m])
+
+      # Access evaluation latency
+      - record: grafana:access_evaluation:duration:p95
+        expr: histogram_quantile(0.95, rate(grafana_access_evaluation_duration_bucket[5m]))
