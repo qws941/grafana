@@ -34,7 +34,8 @@ ssh -p 1111 jclee@192.168.50.215
 **Command**:
 ```bash
 # From local machine
-ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --filter name=grafana-container --filter name=prometheus-container --filter name=loki-container --format 'table {{.Names}}\t{{.Status}}'"
+docker context use synology
+docker ps --filter name=grafana-container --filter name=prometheus-container --filter name=loki-container --format 'table {{.Names}}\t{{.Status}}'
 ```
 
 **Expected Output**:
@@ -263,7 +264,7 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 6. Wait 10 seconds for auto-reload, or restart Grafana:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart grafana-container"
+   docker context use synology && docker restart grafana-container
    ```
 
 7. Verify dashboard appears:
@@ -290,7 +291,7 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 3. Restart Loki (configuration changes require restart):
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart loki-container"
+   docker context use synology && docker restart loki-container
    ```
 
 4. Wait ~10 seconds for startup
@@ -314,12 +315,12 @@ ssh -p 1111 jclee@192.168.50.215 \
 **Command**:
 ```bash
 # Restart specific container
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart <container-name>"
+docker context use synology && docker restart <container-name>
 
 # Examples:
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart grafana-container"
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart loki-container"
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart promtail-container"
+docker context use synology && docker restart grafana-container
+docker context use synology && docker restart loki-container
+docker context use synology && docker restart promtail-container
 ```
 
 **Downtime**:
@@ -330,7 +331,7 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker restart promtail-container"
 
 **Verification**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --filter name=<container-name>"
+docker context use synology && docker ps --filter name=<container-name>
 ```
 
 ---
@@ -365,7 +366,10 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 **Command**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose restart"
+# Use NFS mount and Docker context
+cd /home/jclee/app/grafana
+docker context use synology
+docker compose restart
 ```
 
 **Startup Order** (automatic):
@@ -376,7 +380,7 @@ ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose res
 **Verification**:
 ```bash
 # Wait 30 seconds, then check all containers
-ssh -p 1111 jclee@192.168.50.215 "sudo docker ps"
+docker context use synology && docker ps
 
 # Run deployment verification
 cd /home/jclee/app/grafana
@@ -389,16 +393,16 @@ cd /home/jclee/app/grafana
 
 **Real-time logs**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs -f <container-name>"
+docker context use synology && docker logs -f <container-name>
 
 # Examples:
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs -f grafana-container"
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs -f prometheus-container"
+docker context use synology && docker logs -f grafana-container
+docker context use synology && docker logs -f prometheus-container
 ```
 
 **Last 100 lines**:
 ```bash
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs --tail 100 <container-name>"
+docker context use synology && docker logs --tail 100 <container-name>
 ```
 
 **Search for errors**:
@@ -429,7 +433,7 @@ ssh -p 1111 jclee@192.168.50.215 \
   "sudo docker exec prometheus-container wget -qO- http://<target-host>:<port>/metrics" | head -20
 
 # 3. Check if target container is running
-ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --filter name=<target-container>"
+docker context use synology && docker ps --filter name=<target-container>
 ```
 
 **Common Causes**:
@@ -437,7 +441,7 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker ps --filter name=<target-container
 1. **Target container not running**
    ```bash
    # Restart target container
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart <target-container>"
+   docker context use synology && docker restart <target-container>
    ```
 
 2. **Wrong hostname or port in prometheus.yml**
@@ -477,30 +481,30 @@ ssh -p 1111 jclee@192.168.50.215 \
   jq -r '.data.result[0].value[1] // "0"'
 
 # 2. Check Promtail status
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs --tail 50 promtail-container"
+docker context use synology && docker logs --tail 50 promtail-container
 
 # 3. Check Promtail targets
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs promtail-container" | grep -i "Adding target"
+docker context use synology && docker logs promtail-container | grep -i "Adding target"
 ```
 
 **Common Causes**:
 
 1. **Promtail container not running**
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart promtail-container"
+   docker context use synology && docker restart promtail-container
    ```
 
 2. **Promtail not discovering containers**
    ```bash
    # Check docker_sd_configs is working
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs promtail-container" | grep "docker_sd"
+   docker context use synology && docker logs promtail-container | grep "docker_sd"
    ```
 
 3. **Loki rejecting logs (too old)**
    - Loki rejects logs older than 3 days
    - Check Loki logs for "entry out of order" errors
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs loki-container" | grep "out of order"
+   docker context use synology && docker logs loki-container | grep "out of order"
    ```
 
 4. **Promtail position file corrupted**
@@ -508,7 +512,7 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker logs promtail-container" | grep -i
    # Reset Promtail positions (re-reads all logs)
    ssh -p 1111 jclee@192.168.50.215 \
      "sudo docker exec promtail-container sh -c 'echo \"positions:\" > /tmp/positions.yaml'"
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart promtail-container"
+   docker context use synology && docker restart promtail-container
    ```
 
 ---
@@ -558,57 +562,84 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 ---
 
-### 4. Real-time Sync Not Working
+### 4. NFS Mount Issues
 
 **Symptoms**:
 - Local file changes not appearing on Synology NAS
 - Dashboards/configs not updating after edits
+- "Stale file handle" errors
 
 **Diagnosis**:
 ```bash
-# 1. Check sync service status
-sudo systemctl status grafana-sync
+# 1. Check NFS mount status
+mount | grep grafana
 
-# 2. View recent sync logs
-sudo journalctl -u grafana-sync -n 50
+# 2. Test write access
+touch /home/jclee/app/grafana/test.txt && \
+  rm /home/jclee/app/grafana/test.txt
 
-# 3. Check for sync errors
-sudo journalctl -u grafana-sync | grep -i error
+# 3. Check mount options
+cat /etc/fstab | grep grafana
+```
+
+**Expected Output**:
+```
+# mount | grep grafana
+192.168.50.215:/volume1/grafana on /home/jclee/app/grafana type nfs (rw,noatime,hard)
+
+# /etc/fstab
+192.168.50.215:/volume1/grafana /home/jclee/app/grafana nfs rw,noatime,hard 0 0
 ```
 
 **Common Causes**:
 
-1. **Sync service not running**
+1. **NFS mount is stale**
    ```bash
-   sudo systemctl start grafana-sync
-   sudo systemctl enable grafana-sync  # Auto-start on boot
+   # Remount NFS share
+   sudo umount /home/jclee/app/grafana
+   sudo mount -a
+
+   # Verify mount is active
+   mount | grep grafana
    ```
 
-2. **SSH connection issue**
+2. **NFS server unreachable**
    ```bash
-   # Test SSH connectivity
-   ssh -p 1111 jclee@192.168.50.215 "echo 'Connection OK'"
+   # Test network connectivity to NAS
+   ping -c 3 192.168.50.215
+
+   # Test NFS service
+   showmount -e 192.168.50.215
    ```
 
 3. **File permissions issue**
    ```bash
    # Check file ownership
-   ls -la configs/
-   # Should be owned by current user
+   ls -la /home/jclee/app/grafana/configs/
+
+   # Should be owned by current user (jclee)
+   # If not, fix on NAS:
+   ssh -p 1111 jclee@192.168.50.215 \
+     "sudo chown -R jclee:users /volume1/grafana"
    ```
 
-4. **Debounce delay**
-   - Normal behavior: 1-2 second delay after file change
-   - Wait 5 seconds and check again
+4. **Mount not in /etc/fstab**
+   ```bash
+   # Add to /etc/fstab if missing
+   echo "192.168.50.215:/volume1/grafana /home/jclee/app/grafana nfs rw,noatime,hard 0 0" | \
+     sudo tee -a /etc/fstab
 
-**Manual sync trigger**:
-```bash
-# If auto-sync fails, manually sync
-rsync -avz --exclude .git --exclude node_modules \
-  -e "ssh -p 1111" \
-  /home/jclee/app/grafana/ \
-  jclee@192.168.50.215:/volume1/grafana/
-```
+   # Test mount
+   sudo mount -a
+   ```
+
+**Advantages of NFS over Sync Service**:
+- ✅ **Instant sync** - Changes reflected immediately (no delay)
+- ✅ **No daemon needed** - Standard Linux filesystem operation
+- ✅ **Bidirectional** - Read/write works seamlessly
+- ✅ **No sync conflicts** - Single source of truth
+
+**Note**: The old `grafana-sync.service` systemd service has been deprecated (2025-10-18) and replaced with this NFS mount architecture. Sync scripts have been archived to `docs/archive/deprecated-scripts/`.
 
 ---
 
@@ -622,7 +653,7 @@ rsync -avz --exclude .git --exclude node_modules \
 **Diagnosis**:
 ```bash
 # 1. Check container memory usage
-ssh -p 1111 jclee@192.168.50.215 "sudo docker stats --no-stream"
+docker context use synology && docker stats --no-stream
 
 # 2. Check Prometheus cardinality
 ssh -p 1111 jclee@192.168.50.215 \
@@ -649,7 +680,7 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 3. **Restart container** (temporary relief)
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart prometheus-container"
+   docker context use synology && docker restart prometheus-container
    ```
 
 4. **Drop unnecessary metrics** (advanced)
@@ -709,7 +740,7 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 2. **Check if containers crashed**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker ps -a"
+   docker context use synology && docker ps -a
    ```
 
 3. **Check Docker service**:
@@ -719,12 +750,14 @@ ssh -p 1111 jclee@192.168.50.215 \
 
 4. **Restart stack**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose up -d"
+   cd /home/jclee/app/grafana
+   docker context use synology
+   docker compose up -d
    ```
 
 5. **Verify all containers started**:
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker ps"
+   docker context use synology && docker ps
    ```
 
 6. **Run deployment verification**:
@@ -827,21 +860,21 @@ ssh -p 1111 jclee@192.168.50.215 "df -h /volume1 && du -sh /volume1/docker/grafa
 **Steps**:
 ```bash
 # 1. Backup current state
-ssh -p 1111 jclee@192.168.50.215 \
-  "sudo docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' > /tmp/grafana-images-backup.txt"
+docker context use synology
+docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' > /tmp/grafana-images-backup.txt
 
 # 2. Pull latest images
-ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose pull"
+cd /home/jclee/app/grafana
+docker compose pull
 
 # 3. Recreate containers with new images
-ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose up -d"
+docker compose up -d
 
 # 4. Verify all services healthy
-cd /home/jclee/app/grafana
 ./tests/deployment-verification.sh
 
 # 5. If issues, rollback
-# ssh -p 1111 jclee@192.168.50.215 "cd /volume1/grafana && sudo docker compose down"
+# docker compose down
 # # Manually revert to old image IDs, then docker compose up -d
 ```
 
@@ -854,10 +887,10 @@ cd /home/jclee/app/grafana
 **Command**:
 ```bash
 # Remove unused images
-ssh -p 1111 jclee@192.168.50.215 "sudo docker image prune -a -f"
+docker context use synology && docker image prune -a -f
 
 # Remove unused volumes (⚠️ DANGEROUS - only if volumes not in use)
-# ssh -p 1111 jclee@192.168.50.215 "sudo docker volume prune -f"
+# docker context use synology && docker volume prune -f
 ```
 
 ---
@@ -951,10 +984,10 @@ ssh -p 1111 jclee@192.168.50.215 "sudo docker image prune -a -f"
 ./tests/deployment-verification.sh --quick
 
 # View Logs
-ssh -p 1111 jclee@192.168.50.215 "sudo docker logs -f <container-name>"
+docker context use synology && docker logs -f <container-name>
 
 # Restart Container
-ssh -p 1111 jclee@192.168.50.215 "sudo docker restart <container-name>"
+docker context use synology && docker restart <container-name>
 
 # Hot Reload Prometheus
 ssh -p 1111 jclee@192.168.50.215 \

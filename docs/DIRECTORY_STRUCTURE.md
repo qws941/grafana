@@ -10,7 +10,7 @@ Comprehensive guide to the directory structure, file organization, and usage pat
 **Purpose**: Integrated Grafana monitoring stack + n8n workflow automation deployment
 **Deployment Method**: Docker Compose + GitOps
 **Deployment Target**: Synology NAS (192.168.50.215:1111)
-**Development**: Rocky Linux 9 (192.168.50.100) with real-time sync
+**Development**: Rocky Linux 9 (192.168.50.100) with NFS mount (instant sync)
 
 ---
 
@@ -68,7 +68,8 @@ grafana/
 ├── scripts/                       # 🔧 Utility scripts
 │   ├── health-check.sh            # Service health validation
 │   ├── validate-metrics.sh        # Metrics existence validation
-│   ├── realtime-sync.sh           # Manual sync trigger
+│   ├── monitoring-status.sh       # Real-time monitoring dashboard
+│   ├── monitoring-trends.sh       # Historical trends analysis
 │   ├── grafana-api.sh             # Grafana API wrapper
 │   ├── create-volume-structure.sh # NAS volume directory creation
 │   └── lib/                       # Common libraries
@@ -496,11 +497,13 @@ graph TD
 2. **Sync**: Wait 1-2 seconds
 3. **Apply**: Restart Promtail (requires restart, no hot reload)
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker restart promtail-container"
+   docker context use synology
+   docker restart promtail-container
    ```
 4. **Verify**: Check Promtail logs
    ```bash
-   ssh -p 1111 jclee@192.168.50.215 "sudo docker logs promtail-container --tail 50"
+   docker context use synology
+   docker logs promtail-container --tail 50
    ```
 
 ### Scenario 4: Add Alert Rule
