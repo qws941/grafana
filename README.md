@@ -10,17 +10,24 @@ Complete observability stack deployed **remotely on Synology NAS** (192.168.50.2
 Local Machine (Development)          Synology NAS (192.168.50.215:1111)
 ───────────────────────────          ──────────────────────────────────
 /home/jclee/app/grafana/             /volume1/grafana/
-├── configs/              ◄────────► ├── configs/         (real-time sync)
-├── scripts/              systemd    ├── scripts/
-├── docker-compose.yml    service    ├── docker-compose.yml
-└── docs/                            └── Docker Services:
-                                         - grafana-container      (3000)
-Real-time Sync Daemon                    - prometheus-container   (9090)
-└── grafana-sync.service                 - loki-container         (3100)
-    ├── fs.watch → detect changes        - alertmanager-container (9093)
-    ├── debounce (1s delay)              - promtail-container
-    └── rsync over SSH                   - node-exporter-container
-                                         - cadvisor-container
+(NFS Mount Point)         ◄═══════► (NFS Share)
+├── configs/                          ├── configs/
+├── scripts/                          ├── scripts/
+├── docker-compose.yml                ├── docker-compose.yml
+└── docs/                             └── data/
+                                          ├── grafana/
+NFS Mount:                                ├── prometheus/
+- Source: 192.168.50.215:/volume1/grafana ├── loki/
+- Type: NFS v3                            └── alertmanager/
+- Sync: INSTANT (filesystem-level)
+                                      Docker Services:
+                                      - grafana-container      (3000)
+                                      - prometheus-container   (9090)
+                                      - loki-container         (3100)
+                                      - alertmanager-container (9093)
+                                      - promtail-container
+                                      - node-exporter-container
+                                      - cadvisor-container
 ```
 
 ## 🚀 Quick Start
@@ -31,19 +38,23 @@ Real-time Sync Daemon                    - prometheus-container   (9090)
 - **Local Machine**: Rocky Linux 9 (192.168.50.100)
 - **Docker**: Installed on Synology NAS
 - **SSH Key**: Passwordless SSH to NAS configured
-- **grafana-sync.service**: Real-time sync systemd service running
+- **NFS Mount**: `/home/jclee/app/grafana` mounted from `192.168.50.215:/volume1/grafana`
+- **Docker Context**: `synology` context configured
 
-### 1. Verify Real-time Sync
+> **Quick Reference**: See [CLAUDE.md](CLAUDE.md) for emergency fixes, PromQL patterns, and Docker context setup
+
+### 1. Verify NFS Mount
 
 ```bash
-# Check sync service status (ALWAYS CHECK THIS FIRST)
-sudo systemctl status grafana-sync
+# Check NFS mount (instant sync via filesystem)
+mount | grep grafana
 
-# View real-time sync logs
-sudo journalctl -u grafana-sync -f
+# Should show:
+# 192.168.50.215:/volume1/grafana on /home/jclee/app/grafana type nfs
 
-# Restart sync service if needed
-sudo systemctl restart grafana-sync
+# Setup Docker context (one-time)
+docker context create synology --docker "host=ssh://jclee@192.168.50.215:1111"
+docker context use synology
 ```
 
 ### 2. Environment Variables
@@ -192,19 +203,19 @@ grafana/
 
 ## 🔧 Key Features
 
-### Real-time Configuration Sync
+### Instant Configuration Sync via NFS
 
-- **Automatic**: Changes synced within 1-2 seconds via grafana-sync.service
-- **Bi-directional**: Local → NAS and NAS → Local
-- **Debounced**: 1-second delay to batch rapid changes
-- **Reliable**: Systemd service with auto-restart
+- **Instant**: Changes reflected immediately via NFS mount (no delay)
+- **Bidirectional**: Local ↔ NAS (filesystem-level sync)
+- **No daemon**: Standard Linux NFS mount handles synchronization
+- **Reliable**: Kernel-level filesystem operation
 
 **Standard workflow**:
 ```bash
-# 1. Edit configs locally (auto-synced automatically)
+# 1. Edit configs locally (instantly synced via NFS)
 vim configs/prometheus.yml
 
-# 2. Wait 1-2 seconds for auto-sync
+# 2. Changes are IMMEDIATE on NAS (no waiting)
 
 # 3. Reload remote service
 ssh -p 1111 jclee@192.168.50.215 \
@@ -373,15 +384,23 @@ Runs on: Push to main/master/develop, Pull requests
 
 ## 📞 Troubleshooting
 
-### Changes Not Syncing
+### NFS Mount Issues
 
 ```bash
-# Check sync service
-sudo systemctl status grafana-sync
-sudo journalctl -u grafana-sync -n 50
+# Check NFS mount status
+mount | grep grafana
 
-# Restart service
-sudo systemctl restart grafana-sync
+# Test write access
+touch /home/jclee/app/grafana/test.txt && \
+  rm /home/jclee/app/grafana/test.txt
+
+# Remount if stale
+sudo umount /home/jclee/app/grafana
+sudo mount -a
+
+# Verify mount
+mount | grep grafana
+# Should show: 192.168.50.215:/volume1/grafana on /home/jclee/app/grafana type nfs
 ```
 
 ### Dashboard Shows "No Data"
@@ -416,12 +435,17 @@ For complete troubleshooting guide, see [resume/troubleshooting.md](resume/troub
 - [Deployment Guide](resume/deployment.md) - Step-by-step deployment procedures (500+ lines)
 - [Troubleshooting](resume/troubleshooting.md) - Comprehensive troubleshooting guide (600+ lines)
 - [Demo Guide](demo/README.md) - Examples, scenarios, and visual materials (577 lines)
-- [Project Guidance](CLAUDE.md) - Project-specific guidance for Claude Code
+- [Project Guidance](CLAUDE.md) - Project-specific guidance for Claude Code (483 lines, v2.1)
+  - 🔍 Common PromQL patterns (REDS/USE queries)
+  - 🔧 Quick troubleshooting fixes (emergency scenarios)
+  - ⚡️ Docker context setup & NFS architecture
+  - 🚀 Script dependencies & validation
 
 ## 🔄 Updates
 
 ### Version History
 
+- **2025-10-21**: CLAUDE.md v2.1 enhancements (PromQL patterns, quick fixes, Docker context, script deps)
 - **2025-10-17**: Constitutional Framework compliance (95%+), comprehensive documentation
 - **2025-10-16**: n8n recording rules updated (validated metrics only)
 - **2025-10-14**: Security improvements, environment variable migration, automated validation
@@ -452,5 +476,5 @@ This project is for internal use. Modify as needed for your environment.
 
 **Deployment**: Synology NAS (192.168.50.215:1111)
 **Development**: Rocky Linux 9 (192.168.50.100)
-**Sync**: Real-time (1-2s latency via grafana-sync.service)
-**Compliance**: Constitutional Framework v11.11 (95%+)
+**Sync**: Instant (NFS v3 mount, filesystem-level)
+**Compliance**: Constitutional Framework v12.0 (100%)
