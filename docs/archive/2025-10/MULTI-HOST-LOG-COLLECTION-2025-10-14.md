@@ -2669,7 +2669,7 @@ docker rm -f promtail-test
 - `MONITORING-STATUS-REPORT-2025-10-13.md`: Comprehensive monitoring system inspection
 - `GRAFANA-BEST-PRACTICES-2025.md`: Dashboard design and observability standards
 - `IMPLEMENTATION-SUMMARY-2025-10-13.md`: Grafana best practices implementation
-- `REALTIME_SYNC.md`: Sync architecture between local dev and Synology
+- `DEPRECATED-REALTIME_SYNC.md`: Sync architecture between local dev and Synology (deprecated, replaced by NFS mount)
 - `CLAUDE.md`: Project overview and architecture
 
 **External Resources**:

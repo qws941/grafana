@@ -418,7 +418,7 @@ providers:
 - `docs/METRICS-VALIDATION-2025-10-12.md` - Metrics validation methodology
 - `docs/N8N-LOG-INVESTIGATION-2025-10-12.md` - Synology logging constraints
 - `docs/DASHBOARD-MODERNIZATION-2025-10-12.md` - Dashboard standards
-- `docs/REALTIME_SYNC.md` - Sync architecture
+- `docs/DEPRECATED-REALTIME_SYNC.md` - Sync architecture (deprecated, replaced by NFS mount)
 - `CLAUDE.md` - Project overview and architecture
 
 ### External Resources:

@@ -423,7 +423,7 @@ prometheus_rule_evaluation_duration_seconds > 1
 ### Internal Documentation
 - `docs/METRICS-VALIDATION-2025-10-12.md` - Metrics validation methodology
 - `docs/DASHBOARD-MODERNIZATION-2025-10-12.md` - Dashboard modernization guide
-- `docs/REALTIME_SYNC.md` - Real-time sync architecture
+- `docs/DEPRECATED-REALTIME_SYNC.md` - Deprecated sync architecture (replaced by NFS mount)
 
 ---
 
